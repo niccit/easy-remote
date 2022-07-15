@@ -1,5 +1,7 @@
 # Easy Remote with LED Display
 
+![Picture of LED display](remote_display.jpg)
+
 ## The Need
 As my mom gets older, she is having trouble working the remote for her Roku devices. I'm often called to her house to fix the TV along with other things.
 
@@ -27,3 +29,4 @@ All the hardware is from [Adafruit](https://www.adafruit.com).
 The keycaps are 3D printed and I will attach a link to the files at project completion
 
 The case (yet to be designed and printed) will house all the hardware and will be coded in OpenSCAD. That file will be included along with the STL as part of this project
+
