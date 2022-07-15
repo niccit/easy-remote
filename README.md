@@ -26,7 +26,7 @@ All the hardware is from [Adafruit](https://www.adafruit.com).
 - [NeoKey 1x4 QT I2C - Four Mechanical Key Switches with NeoPixels - STEMMA QT / Qwiic](https://www.adafruit.com/product/4980)
 - [Kailh Mechanical Key Switches - Clicky White - 10 pack - Cherry MX White Compatible](https://www.adafruit.com/product/4955)
 
-The keycaps are 3D printed and I will attach a link to the files at project completion
+The keycaps will be 3D printed and I will attach a link to the STL file
 
-The case (yet to be designed and printed) will house all the hardware and will be coded in OpenSCAD. That file will be included along with the STL as part of this project
+The case (yet to be designed and printed) will house all the hardware and will be coded in OpenSCAD. That file will be included along with the STL.
 
