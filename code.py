@@ -12,11 +12,12 @@ from adafruit_display_text.bitmap_label import Label
 from adafruit_bitmap_font import bitmap_font
 from adafruit_matrixportal.matrix import Matrix
 from adafruit_matrixportal.network import Network
+from adafruit_neokey.neokey1x4 import NeoKey1x4
 
 DISPLAY_WIDTH = 64
 DISPLAY_HEIGHT = 32
 DISPLAY_BITPLANES = 6
-UPDATE_DELAY = 1800
+UPDATE_DELAY = 3600
 FONT = bitmap_font.load_font("/fonts/RobotoMono-Regular-8.pcf")
 
 # Get Wifi information from secrets.py file
@@ -34,6 +35,7 @@ except ImportError:
     raise
 
 # --- Setup  ---
+# Board and Network
 esp32_cs = digitalio.DigitalInOut(board.ESP_CS)
 esp32_ready = digitalio.DigitalInOut(board.ESP_BUSY)
 esp32_reset = digitalio.DigitalInOut(board.ESP_RESET)
@@ -43,6 +45,10 @@ esp = adafruit_esp32spi.ESP_SPIcontrol(spi, esp32_cs, esp32_ready, esp32_reset)
 
 socket.set_interface(esp)
 session = requests.Session(socket)
+
+# Neokey 1x4 keyboard
+i2c_bus = board.STEMMA_I2C()
+neokey = NeoKey1x4(i2c_bus, addr=0x30)
 
 # Get what we need from the data file
 urls = data["device_urls"]
@@ -54,10 +60,6 @@ netflix_search_int = data["netflix_search_int"]
 # In the event we have a dedicated Roku TV, we need to know this
 # So we can power the TV on before sending any commands
 roku_tv = False
-
-# This value drives what we have to clear before putting up a new
-# message. Can be other, default or show
-msg_text = "default" # used to ensure we show the default display text when needed
 
 # URLs
 url_1 = urls[0]
@@ -81,20 +83,6 @@ frndly_show_for_display = show_3.split()
 
 last_check = None
 now_time = None
-
-# --- Testing with Up/Down buttons until a keyboard is hooked up --
-netflix_btn = digitalio.DigitalInOut(board.BUTTON_UP)
-netflix_btn.direction = digitalio.Direction.INPUT
-netflix_btn.pull = digitalio.Pull.UP
-#paramount_btn = digitalio.DigitalInOut(board.BUTTON_DOWN)
-#paramount_btn.direction = digitalio.Direction.INPUT
-#paramount_btn.pull = digitalio.Pull.UP
-frndly_btn = digitalio.DigitalInOut(board.BUTTON_DOWN)
-frndly_btn.direction = digitalio.Direction.INPUT
-frndly_btn.pull = digitalio.Pull.UP
-#poweroff_btn = digitalio.DigitalInOut(board.BUTTON_DOWN)
-#poweroff_btn.direction = digitalio.Direction.INPUT
-#poweroff_btn.pull = digitalio.Pull.UP
 
 # --- Roku API Calls ---
 # Home
@@ -128,7 +116,7 @@ frndly = ("launch/298229")
 # Query Active Application
 active_app = ("query/active-app")
 # Query Device State
-device_state = ("query/media-player")
+query_media = ("query/media-player")
 
 # --- Display and Network ---
 network = Network(status_neopixel=board.NEOPIXEL, esp=esp, debug=False)
@@ -148,15 +136,20 @@ tile_grid = displayio.TileGrid(bitmap, pixel_shader=color)
 group.append(tile_grid)
 display.show(group)
 
+display_array = []
+
 # --- Helper Methods for the Display ---
+# Update the time
+def update_time():
+    now = time.localtime()
+    network.get_local_time() #Synchronize Board's clock to internet
 
 # Set the default display when active
 # Color coded by show/channel
 def set_default_display_msg():
-    global msg_text
+    global display_array
 
-    if msg_text is not "default":
-        clear_display()
+    clear_display()
 
     hello1 = Label(
         font = FONT,
@@ -195,12 +188,12 @@ def set_default_display_msg():
     group.append(hello3)
     group.append(hello4)
 
-    msg_text = "default"
+    display_array = ["hello1", "hello2", "hello3", "hello4"]
 
 # This method is called to update the display
 # The display will read "Now Playing \r <selected show>"
 def set_watching_display(channel=None):
-    global msg_text
+    global display_array
 
     if channel:
         channel = channel
@@ -232,35 +225,17 @@ def set_watching_display(channel=None):
     line2.x = round(display.width / 2 - bbwidth2 /2)
     line2.y = 24
 
-    if msg_text is "show":
-        print ("msg_text is show")
-        msg_text = "other"
-        clear_display()
-    else:
-        print ("msg_text is not show")
-        clear_display()
-        group.append(line1)
-
+    clear_display()
+    display_array = ["line1", "line2"]
+    group.append(line1)
     group.append(line2)
-    msg_text = "show"
 
 # Clear the display based on msg_text
 def clear_display():
-    global msg_text
+    global display_array
 
-    default_range = 4
-    show_range = 2
-
-    print("msg_text is ", msg_text)
-
-    if msg_text is "default":
-        for x in range(default_range):
-            group.pop()
-    elif msg_text is "show":
-        for x in range(show_range):
-            group.pop()
-    elif msg_text is "other":
-            group.pop()
+    for i in range(len(display_array)):
+        group.pop()
 
 # --- Helper methods for other tasks not related to the Roku or Display ---
 def get_show_search_array(show=None):
@@ -279,11 +254,6 @@ def get_show_search_array(show=None):
         else:
             show_array += list(word)
     return show_array
-
-# Update the time
-def update_time():
-    now = time.localtime()
-    network.get_local_time() #Synchronize Board's clock to internet
 
 #  --- Helper methods for interacting with Roku ---
 # Perform a search.
@@ -319,7 +289,8 @@ def search_program(url=None, show=None, channel=None):
 
     for i in show_to_search:
         session.post(device_url + "keypress/Lit_" + i)
-    time.sleep(1)
+        time.sleep(0.75)
+    time.sleep(2)
     for x in range(search_int):
         session.post(device_url + right)
         time.sleep(0.5)
@@ -349,7 +320,7 @@ def launch_netflix(url=None, second_tv=False):
         # Set the display to indicate what we're watching
         set_watching_display(channel=channel_1)
     session.post(device_url + netflix) # launch Netflix on the Roku Streambar
-    time.sleep(10)
+    time.sleep(5)
     session.post(device_url + select) # select the active profile
     time.sleep(5)
     session.post(device_url + left) # open the left nav menu
@@ -502,23 +473,27 @@ def get_device_state(url=None):
     if url:
         device_url = url
 
+    # need to check t see if the device is active or stopped
     string_to_check = ["stop", "close"]
-    device_status = session.get(device_url + device_state)
+    device_status = session.get(device_url + query_media)
     device_status_text = device_status.text
+
     regex = re.compile("[\r\n]")
     device_state_to_parse = regex.split(device_status_text)
     regex = re.compile("[\"]")
     line_to_search = (regex.split(device_state_to_parse[1]))
+
     for word in (string_to_check):
         search_string = word
         if search_string is line_to_search[3]:
-            device_state_array = [device_url, "inactive"]
+            device_state = "inactive"
             break
         else:
-            device_state_array = [device_url, "active"]
-    return device_state_array
+            device_state = "active"
 
-def interact_with_tv(url):
+    return device_state
+
+def interact_with_tv(url=None):
     global device_url
 
     if url:
@@ -546,10 +521,10 @@ def power_off(url=None, second_tv=False):
 
     # only run exit_netflix() if we are currently watching Netflix
     if current_app is "12":
-        print("Exiting Netflix before powering off")
         exit_netflix(url=device_url)
 
     # Return to home screen and then power off
+    print("Returning to home screen and powering down")
     session.post(device_url + home)
     session.post(device_url + pwr_off)
 
@@ -565,9 +540,26 @@ secondary_tv_running = True # Change me!!!
 
 # --- Main ---
 while True:
-    # Button states so we can handle keyboard inputs
-    netflix_btn_status = netflix_btn.value
-    frndly_btn_status = frndly_btn.value
+
+    # Keyboard handling
+    # All commands go to the primary TV
+    # Set colors for the keys
+    neokey.pixels[0] = color[1]
+    neokey.pixels[1] = color[2]
+    neokey.pixels[2] = color[3]
+    neokey.pixels[3] = color[4]
+    # Set commands for when key is pressed
+    if neokey[0]:
+        launch_netflix(url=url_1)
+
+    if neokey[1]:
+        launch_paramount(url=url_1)
+
+    if neokey[2]:
+        launch_frndly(url=url_1)
+
+    if neokey[3]:
+        power_off(url=url_1)
 
     # Interact with television, while watching Netflix, every hour
     # If we don't do this, Netflix will prompt "Are you still watching"
@@ -577,36 +569,35 @@ while True:
             now = time.localtime(time.time())
 
             # Get device state for all devices
-            url_1_state = get_device_state(url_1)
-            url_2_state = get_device_state(url_2)
+            url_1_state = get_device_state(url=url_1)
+            url_2_state = get_device_state(url=url_2)
 
             # If either device is active
             # Interact with the TV if Netflix is running
-            if url_1_state[1] is "active":
-                interact_with_tv(url=url_1_state[0])
+            if url_1_state is "active":
+                interact_with_tv(url=url_1)
 
-            if url_2_state[1] is "active":
-                interact_with_tv(url=url_2_state[0])
+            if url_2_state is "active":
+                interact_with_tv(url=url_2)
 
             # Set up the secondary TV for the evening
             if secondary_tv_running is False and now[3] == 19 and now[4] >= 30:
-                launch_netflix(url_2, second_tv=True)
+                launch_netflix(url=url_2, second_tv=True)
                 secondary_tv_running = True
             else:
                 print ("Secondary TV already running")
 
-            if (now[3] == 16 and now[4] >= 00):
-                if url_2_state is "active":
-                    print("going to power off the secondary tv")
-                    power_off(url_2)
+            # Turn off the secondary TV
+            if (now[3] == 21 and now[4] >= 30):
+                if url_2 is "active":
+                    power_off(url=url_2)
                     secondary_tv_running = True #Change me!
+
+            # Turn off the primary TV
+            if (now[3] == 21 and now[4] == 00):
+                if url_1 is "active":
+                    power_off(url=url_1)
 
             last_check = time.monotonic()
         except RuntimeError as e:
             print("An error occured, retrying ... ", e)
-
-    # All button presses will activate the main TV (url_1)
-    if netflix_btn_status is False:
-        launch_netflix(url_1, second_tv=False)
-    if frndly_btn_status is False:
-        launch_frndly(url_1, second_tv=False)
