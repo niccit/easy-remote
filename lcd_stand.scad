@@ -1,12 +1,13 @@
-use </home/ntynen/development/openscad_files/remote_parts.scad>
-use <openSCAD_lib/threads-scad-master/threads.scad>
+use <lib/threads.scad>
+use <lib/JointSCAD.scad>
+use <lib/MortiseAndTenonJoint.scad>
 $fa = 1;
 $fs = 0.4;
 
 // base
 l_length = 128;
 l_width = 256;
-l_height = 5;
+l_height = 6;
 
 // sides
 s_length = l_length;
@@ -14,7 +15,7 @@ s_width = 5;
 s_height = 30;
 
 // top and bottom
-tb_length = 266;
+tb_length = 261;
 tb_width = 5;
 tb_height = 30;
 
@@ -23,14 +24,22 @@ b_length = 45;
 b_width = 6;
 b_height = 10;
 
+// Joint 
+j_dimensions = [10, 4, 10];
+j_proportions = [0.8, 0.2, 0.8];
 
-
-module back() {
+module base() {
    rotate([0,90,90])
       cube([l_length, l_width / 2, l_height], center=true);
 	// Stand
-	translate([l_height / 2 - 25,-(l_length / 2) / 2 + s_width / 2 + 5 - 0.001,-l_width / 2 + l_length / 2])
-		prism(50, 25, 15);
+ 	translate([l_height / 2 - 25,-(l_length / 2) / 2 + s_width / 2 + 5 - 0.001, -l_width / 2 + l_length / 2 - 5])
+ 		prism(50, 25, 15);
+}
+
+// Thank you Adafruit for the hardware, the support, and the community!
+module base_design() {
+	scale([.5, .5, 3])
+		surface(file = "images/adafruit_logo_transparent_small.png", center = true);
 }
 
 module sides() {
@@ -43,18 +52,13 @@ module top_bottom() {
 		cube([tb_length / 2, tb_width, tb_height]);
 }
 
-module dowl() {
-	rotate([90,0,90])
-		cylinder(r=2, h=4);
-}
-
-module dowl_hole() {
-	rotate([90,0,90])
-		cylinder(r=2.25, h=4);
-}
-
 module screw_head() {
     ScrewThread(outer_diam=3, height=3);
+}
+
+module cable_outlet() {
+	rotate([90,0,0])
+		cube([8, b_width, 8], center=true);
 }
 
 module offset_post() {
@@ -86,10 +90,11 @@ module keyboard_tray(){
 
 }
 
-module left_back_side(){
-// Back of case, left side
+module base_left_side(){
 	difference() {
-		back();
+		base();
+		rotate([90,90,0])
+			base_design();
 		rotate([0,90,90])
 		translate([-(l_length / 2 - 8), -(l_width / 4 - 10), 0])
 			cylinder(r=2.5, h=s_width + 1, center=true);
@@ -97,64 +102,60 @@ module left_back_side(){
 		translate([(l_length / 2 - 8), -(l_width / 4 - 10), 0])
 			cylinder(r=2.5, h=s_width + 1, center=true);
 		rotate([0,90,90])
-		translate([-(l_length /2 - 8), l_width / 4 - 1, 0])
+		translate([-(l_length /2 - 8), l_width / 4 , 0])
 			cylinder(r=2.5, h=s_width + 1, center=true);
 		rotate([0,90,90])
-		translate([(l_length /2 - 8), (l_width / 4 - 1), 0])
+		translate([(l_length /2 - 8), l_width / 4, 0])
 			cylinder(r=2.5, h=s_width + 1, center=true);
-		translate([(-l_width / 2) + 63, 0, (l_length / 2) - 16])
-			dowl_hole();
-		translate([(-l_width / 2) + 63 , 0, (-l_length / 2) + 16])
-			dowl_hole();
 	}
+	translate([-l_width / 2 + 55 - 0.001, -l_height / 2 + 1, s_height / 2 - 20])
+		tenon(j_dimensions, j_proportions);
 
-// left side
-	translate([(l_width / 2) / 2 - 0.001, l_height / 2 + s_height / 2 - 5, 0])
+	translate([(l_width / 2) / 2 - 0.001, l_height / 2 + s_height / 2 - 6, 0])
 		sides();
 
-// top and bottom
-	translate([-l_width / 2 / 2 + s_width / 2 - tb_width, l_height / 2 - 5 ,l_length / 2 + 5 - 0.001])
+	translate([-l_width / 2 / 2 + s_width / 2 - 2.5,  l_height / 2 - 6 - 0.001 ,l_length / 2 + 5 - 0.001])
 		top_bottom();
-	translate([-l_width / 2 / 2 + s_width / 2 - tb_width, l_height / 2 - 5 ,-l_length / 2  - 0.001])
+	translate([-l_width / 2 / 2 + s_width / 2 - 2.5, l_height / 2 - 6 - 0.001 ,-l_length / 2  - 0.001])
 		top_bottom();
 }
 
-module right_back_side() {
-//	Back of case, right back plate
-//	With dowls 
+module base_right_side() {
 	difference() {
-	back();
-	rotate([0,90,90])
-		translate([l_length / 2 - 8, l_width / 4 - 10, 0])
-		 cylinder(r=2.5, h=s_height, center=true);
-	rotate([0,90,90])
-		translate([-(l_length / 2 - 8), l_width / 4 - 10, 0])
-		 cylinder(r=2.5, h=s_height, center=true);
-	rotate([0,90,90])
-		translate([l_length /2 - 8, -(l_width / 4 - 1), 0])
-		 cylinder(r=2.5, h=s_height, center=true);
-	rotate([0,90,90])
-		translate([-(l_length /2 - 8), -(l_width / 4 - 1), 0])
-		 cylinder(r=2.5, h=s_height, center=true);
+		base();
+		rotate([90,90,0])
+			base_design();
+		rotate([0,90,90])
+			translate([l_length / 2 - 8, l_width / 4 - 10, 0])
+			 cylinder(r=2.5, h=s_height, center=true);
+		rotate([0,90,90])
+			translate([-(l_length / 2 - 8), l_width / 4 - 10, 0])
+			 cylinder(r=2.5, h=s_height, center=true);
+		rotate([0,90,90])
+			translate([l_length /2 - 8, -(l_width / 4), 0])
+			 cylinder(r=2.5, h=s_height, center=true);
+		rotate([0,90,90])
+			translate([-(l_length /2 - 8), -(l_width / 4), 0])
+			 cylinder(r=2.5, h=s_height, center=true);
+		translate([l_length / 2 - 4, -l_height / 2 + 1, s_height / 2 - 20])
+			cube([10,4,10]);
 	}
-	translate([(l_width / 2) / 2 - 0.001, l_length /2 - 64 - 0.001, 46])
-		dowl();
-	translate([(l_width / 2) / 2 - 0.001, -l_length / 2 + 64, -46])
-		dowl();
+	translate([l_length / 2 - 10, -l_height / 2 + 1, s_height / 2 - 20])
+		mortise(j_dimensions, j_proportions);
 
-//	right side
 	difference() {
-		translate([(-l_width / 2) / 2 - 0.001, l_height / 2 + s_height / 2 - 5, 0])
+		translate([(-l_width / 2) / 2 - 0.001, l_height / 2 + s_height / 2 - 6, 0])
 			sides();
 		rotate([0,90,0])
 		translate([0, l_height / 2 + s_height / 2 + 8, -(l_width / 2) / 2])
-			cube([b_length + 5, b_width, b_height], center=true);
+			cube([b_length + 5, b_width + 5, b_height], center=true);
+		translate([(-l_width / 2) / 2 ,s_height / 2,-s_length / 2 + 20])
+			cable_outlet();
 	}
 
-// top and bottom
-	translate([-l_width / 2 / 2 - s_width / 2, l_height / 2 - 5 ,l_length / 2 + 5 - 0.001])
+	translate([-l_width / 2 / 2 - s_width / 2, l_height / 2 - 6 - 0.001 ,l_length / 2 + 5 - 0.001])
 		top_bottom();
-	translate([-l_width / 2 / 2 - s_width / 2, l_height / 2 - 5 ,-l_length / 2  - 0.001])
+	translate([-l_width / 2 / 2 - s_width / 2, l_height / 2 - 6 - 0.001 ,-l_length / 2  - 0.001])
 		top_bottom();
 }
 
@@ -174,84 +175,23 @@ module right_back_side() {
 // MetricBolt(3, 9);
 
 // The entire unit, if your printer is big enough
-left_back_side();
-translate([-l_width / 2 - 0.001, 0, 0])
-	right_back_side();
+// base_left_side();
+// translate([-l_width / 2 - 0.001, 0, 0])
+// 	base_right_side();
 
 //
 // Individual pieces of the stand
 // For those who's printers can't print
-// the entire piece
+// the entire stand
 //
 
 //
+// Base of case, left back plate
+// back, side, top, bottom, tenon joint
+
+// base_left_side();
+
 // Back of case, right back plate
-// With dowls, side, top and bottom
-// Keyboard tray attached to side
-//
-
-// difference() {
-// back();
-// rotate([0,90,90])
-// 	translate([l_length / 2 - 8, l_width / 4 - 10, 0])
-//   	 cylinder(r=2.5, h=s_height, center=true);
-// rotate([0,90,90])
-// 	translate([-(l_length / 2 - 8), l_width / 4 - 10, 0])
-//   	 cylinder(r=2.5, h=s_height, center=true);
-// rotate([0,90,90])
-// 	translate([l_length /2 - 8, -(l_width / 4 - 1), 0])
-//   	 cylinder(r=2.5, h=s_height, center=true);
-// rotate([0,90,90])
-// 	translate([-(l_length /2 - 8), -(l_width / 4 - 1), 0])
-//   	 cylinder(r=2.5, h=s_height, center=true);
-// }
-// translate([(l_width / 2) / 2 - 0.001, l_length /2 - 64 - 0.001, 46])
-// 	dowl();
-// translate([(l_width / 2) / 2 - 0.001, -l_length / 2 + 64, -46])
-// 	dowl();
-
-// difference() {
-// 	translate([(-l_width / 2) / 2 - 0.001, l_height / 2 + s_height / 2 - 5, 0])
-// 		sides();
-// 	rotate([0,90,0])
-// 	translate([0, l_height / 2 + s_height / 2 + 8, -(l_width / 2) / 2])
-// 		cube([b_length + 5, b_width, b_height], center=true);
-// }
-
-// translate([-l_width / 2 / 2 - s_width / 2, l_height / 2 - 5 ,l_length / 2 + 5 - 0.001])
-// 	top_bottom();
-// translate([-l_width / 2 / 2 - s_width / 2, l_height / 2 - 5 ,-l_length / 2 + 5 - 0.001])
-// 	top_bottom();
-
-//
-// Back of case, right back plate
-// With dowl holes, side, top and bottom
-//
-
-// difference() {
-//  	back();
-//  	rotate([0,90,90])
-//  	translate([-(l_length / 2 - 8), -(l_width / 4 - 10), 0])
-// 		cylinder(r=2.5, h=s_width + 1, center=true);
-// 	rotate([0,90,90])
-// 	translate([(l_length / 2 - 8), -(l_width / 4 - 10), 0])
-// 		cylinder(r=2.5, h=s_width + 1, center=true);
-// 	rotate([0,90,90])
-// 	translate([-(l_length /2 - 8), l_width / 4 - 1, 0])
-// 		cylinder(r=2.5, h=s_width + 1, center=true);
-// 	rotate([0,90,90])
-// 	translate([(l_length /2 - 8), (l_width / 4 - 1), 0])
-// 		cylinder(r=2.5, h=s_width + 1, center=true);
-// 	translate([(-l_width / 2) + 63, 0, (l_length / 2) - 16])
-// 		dowl_hole();
-//   	translate([(-l_width / 2) + 63 , 0, (-l_length / 2) + 16])
-//   		dowl_hole();
-// }
-
-// translate([-(l_width / 2) / 2 - 0.001, l_height / 2 + s_height / 2 - 5, 0])
-//    sides();
-
-// 	translate([-l_width / 2 / 2 + s_width / 2 - tb_width, l_height / 2 - 5 ,l_length / 2 + 5 - 0.001])
-// 		top_bottom();
-// 	translate([-l_width / 2 / 2 + s_width / 2 - tb_width, l_height / 2 - 5 ,-l_length / 2  - 0.001])
-// 		top_bottom();
+// back, side, top, bottom, keyboard tray, mortise joint
+ 
+// base_right_side();
