@@ -1,6 +1,6 @@
 # Easy Remote with LED Display
 
-![Picture of LED display](remote_display.jpg)
+![Picture of LED display](docs/remote_display.jpg)
 
 ## The Need
 As my mom gets older, she is having trouble working the remote for her Roku devices. I'm often called to her house to fix the TV.
