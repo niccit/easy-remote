@@ -5,9 +5,8 @@ import busio
 import digitalio
 import re
 import adafruit_requests as requests
-import adafruit_esp32spi.adafruit_esp32spi_socket as socket
-from board import SCL, SDA
 from adafruit_esp32spi import adafruit_esp32spi
+import adafruit_esp32spi.adafruit_esp32spi_socket as socket
 from adafruit_display_text.bitmap_label import Label
 from adafruit_bitmap_font import bitmap_font
 from adafruit_matrixportal.matrix import Matrix
@@ -31,11 +30,12 @@ except ImportError:
 try:
     from data import data
 except ImportError:
-    print("Cannot import services/shows from data file, please add them there")
+    print("Cannot import data file")
     raise
 
 # --- Setup  ---
-# Board and Network
+
+# Network
 esp32_cs = digitalio.DigitalInOut(board.ESP_CS)
 esp32_ready = digitalio.DigitalInOut(board.ESP_BUSY)
 esp32_reset = digitalio.DigitalInOut(board.ESP_RESET)
@@ -43,6 +43,7 @@ esp32_reset = digitalio.DigitalInOut(board.ESP_RESET)
 spi = busio.SPI(board.SCK, board.MOSI, board.MISO)
 esp = adafruit_esp32spi.ESP_SPIcontrol(spi, esp32_cs, esp32_ready, esp32_reset)
 
+network = Network(status_neopixel=board.NEOPIXEL, esp=esp, debug=False)
 socket.set_interface(esp)
 session = requests.Session(socket)
 
@@ -57,9 +58,13 @@ current_channels = data["channels"]
 guide_position = data["frndly_guide_position"]
 netflix_search_int = data["netflix_search_int"]
 
-# In the event we have a dedicated Roku TV, we need to know this
-# So we can power the TV on before sending any commands
-roku_tv = False
+# If this is not the primary television, don't set the LED display
+second_tv = False
+device_1 = "inactive"
+device_2 = "inactive"
+last_check = None
+now_time = None
+display_array = []
 
 # URLs
 url_1 = urls[0]
@@ -80,9 +85,6 @@ channel_3 = current_channels[2]
 # Need to shorten longer titles to fit Matrix
 paramount_show_for_display = show_2.split()
 frndly_show_for_display = show_3.split()
-
-last_check = None
-now_time = None
 
 # --- Roku API Calls ---
 # Home
@@ -118,12 +120,10 @@ active_app = ("query/active-app")
 # Query Device State
 query_media = ("query/media-player")
 
-# --- Display and Network ---
-network = Network(status_neopixel=board.NEOPIXEL, esp=esp, debug=False)
+# --- Display ---
 matrix = Matrix()
 display = matrix.display
 
-# --- Setup Drawing ---
 group = displayio.Group()
 bitmap = displayio.Bitmap(DISPLAY_WIDTH, DISPLAY_HEIGHT, DISPLAY_BITPLANES)
 color = displayio.Palette(5)
@@ -136,7 +136,6 @@ tile_grid = displayio.TileGrid(bitmap, pixel_shader=color)
 group.append(tile_grid)
 display.show(group)
 
-display_array = []
 
 # --- Helper Methods for the Display ---
 # Update the time
@@ -301,24 +300,32 @@ def search_program(url=None, show=None, channel=None):
 # Select the last used profile
 # Bring up the left nav menu
 # Execute search for chosen show and select
-def launch_netflix(url=None, second_tv=False):
-    global device_url, roku_tv
+def launch_netflix(url=None):
+    global device_url, second_tv, device_1, device_2
 
     if url:
         device_url = url
 
-    if second_tv:
-        roku_tv = second_tv
-
     print("launching ", show_1, " on ", channel_1, " on device ", device_url)
 
-    if roku_tv is True:
-        print("This is a device that must be powered on first")
-        session.post(device_url + pwr_on) # turn Roku TV on
-        time.sleep(20)
-    else:
-        # Set the display to indicate what we're watching
+    if second_tv is False:
         set_watching_display(channel=channel_1)
+    else:
+        second_tv = False
+
+    if device_url is url_1:
+        if device_1 is "inactive":
+            print("powering on device at ", url_1)
+            device_1 = "active"
+            power_on(url=url)
+    elif device_url is url_2:
+        if device_2 is "inactive":
+            print("powering on device at ", url_2)
+            device_2 = "active"
+            power_on(url=url)
+    else:
+        print("device at ", device_url, " is active")
+
     session.post(device_url + netflix) # launch Netflix on the Roku Streambar
     time.sleep(5)
     session.post(device_url + select) # select the active profile
@@ -364,14 +371,11 @@ def exit_netflix(url=None):
 # Open left nav
 # Move to search
 # Execute search for show and select
-def launch_paramount(url=None, second_tv=False):
-    global device_url, roku_tv
+def launch_paramount(url=None):
+    global device_url, second_tv, device_1, device_2
 
     if url:
         device_url = url
-
-    if second_tv:
-        roku_tv = second_tv
 
     # check and see if Netflix is active, if so exit the app before starting new show
     active_channel = get_active_app(url=url)
@@ -380,12 +384,25 @@ def launch_paramount(url=None, second_tv=False):
 
     print("launching ", show_2, "on ", channel_2, " on device ", device_url)
 
-    if roku_tv is True:
-        session.post(device_url + pwr_on) # turn Roku TV on
-        time.sleep(20)
-    else:
-        # Set the display to indicate what we're watching
+    # Set the display to indicate what we're watching
+    if second_tv is False:
         set_watching_display(channel=channel_2)
+    else:
+        second_tv = False
+
+    if device_url is url_1:
+        if device_1 is "inactive":
+            print("powering on device at ", url_1)
+            device_1 = "active"
+            power_on(url=device_url)
+    elif device_url is url_2:
+        if device_2 is "inactive":
+            print("powering on device at ", url_2)
+            device_2 = "active"
+            power_on(url=device_url)
+    else:
+        print("device at ", device_url, " is active")
+
     session.post(device_url + paramount) # launch Paramount+
     time.sleep(10)
     session.post(device_url + right) # Navigate to second profile
@@ -408,14 +425,11 @@ def launch_paramount(url=None, second_tv=False):
 # Navigate to the selected channel in the guide
 # Select that channel
 # Select Watch Live
-def launch_frndly(url=None, second_tv=False):
-    global device_url, guide_position, roku_tv
+def launch_frndly(url=None):
+    global device_url, guide_position, second_tv, device_1, device_2
 
     if url:
         device_url = url
-
-    if second_tv:
-        roku_tv = second_tv
 
     # check and see if Netflix is active, if so exit the app before starting new show
     active_channel = get_active_app(url=url)
@@ -423,13 +437,25 @@ def launch_frndly(url=None, second_tv=False):
         exit_netflix(url=device_url)
 
     print("launching ", show_3, " on ", channel_3, " on device ", device_url)
-    # launch Frndly TV and search for the desired channel and select it
-    if roku_tv is True:
-        session.post(device_url + pwr_on) # turn Roku TV on
-        time.sleep(20)
-    else:
-        # Set the display to indicate what we're watching
+
+    if second_tv is False:
         set_watching_display(channel=channel_3)
+    else:
+        second_tv = False;
+
+    if device_url is url_1:
+        if device_1 is "inactive":
+            print("powering on device at ", url_1)
+            device_1 = "active"
+            power_on(url=device_url)
+    elif device_url is url_2:
+        if device_2 is "inactive":
+            print("powering on device at ", url_2)
+            device_2 = "active"
+            power_on(url=device_url)
+    else:
+        print("device at ", device_url, " is active")
+
     session.post(device_url + frndly) # Launch FrndlyTV
     time.sleep(10)
     # Since FrndlyTV search is non-standard, we can't search without it
@@ -507,15 +533,21 @@ def interact_with_tv(url=None):
         time.sleep(0.25)
         session.post(device_url + vol_up)
 
-# Exit current running app and power down the Roku TV or put the Roku device into sleep mode
-def power_off(url=None, second_tv=False):
-    global device_url, roku_tv
+def power_on(url=None):
+    global device_url
 
     if url:
         device_url = url
 
-    if second_tv:
-        roku_tv = second_tv
+    session.post(device_url + pwr_on) # turn Roku TV on
+    time.sleep(10)
+
+# Exit current running app and power down the Roku TV or put the Roku device into sleep mode
+def power_off(url=None):
+    global device_url, device_1, device_2
+
+    if url:
+        device_url = url
 
     current_app = get_active_app(url=url)
 
@@ -528,15 +560,20 @@ def power_off(url=None, second_tv=False):
     session.post(device_url + home)
     session.post(device_url + pwr_off)
 
-    if roku_tv is False:
+    if second_tv is False:
         set_default_display_msg()
+
+    if device_url is url_1:
+        device_1 = "inactive"
+    elif device_url is url_2:
+        device_2 = "inactive"
 
 # --- Start Up ---
 # Set the default text
 set_default_display_msg()
 
-# Sate that drives whether we turn on the secondary TV
-secondary_tv_running = True # Change me!!!
+# Sate that drives whether we turn on the second TV
+second_tv_running = True # Change me!!!
 
 # --- Main ---
 while True:
@@ -576,25 +613,28 @@ while True:
             # Interact with the TV if Netflix is running
             if url_1_state is "active":
                 interact_with_tv(url=url_1)
+                device_1 = "active"
 
             if url_2_state is "active":
                 interact_with_tv(url=url_2)
+                device_2 = "active"
 
-            # Set up the secondary TV for the evening
-            if secondary_tv_running is False and now[3] == 19 and now[4] >= 30:
-                launch_netflix(url=url_2, second_tv=True)
-                secondary_tv_running = True
+            # Set up the second TV for the evening
+            if second_tv_running is False and now[3] == 19 and now[4] >= 30:
+                second_tv = true
+                launch_netflix(url=url_2)
+                second_tv_running = True
             else:
-                print ("Secondary TV already running")
+                print ("second TV already running")
 
-            # Turn off the secondary TV
+            # Turn off the second TV
             if (now[3] == 21 and now[4] >= 30):
                 if url_2 is "active":
                     power_off(url=url_2)
-                    secondary_tv_running = True #Change me!
+                    second_tv_running = True #Change me!
 
             # Turn off the primary TV
-            if (now[3] == 21 and now[4] == 00):
+            if (now[3] == 20 and now[4] == 45):
                 if url_1 is "active":
                     power_off(url=url_1)
 
