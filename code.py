@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+
 import time
 import board
 import displayio

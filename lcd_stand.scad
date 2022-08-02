@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 use <lib/threads.scad>
 use <lib/JointSCAD.scad>
 use <lib/MortiseAndTenonJoint.scad>
