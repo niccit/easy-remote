@@ -36,7 +36,9 @@ The keycap STL file can be found on [Adafruit](https://learn.adafruit.com)
   - [Custom Bluetooth Cherry MX Gamepad](https://learn.adafruit.com/custom-wireless-bluetooth-cherry-mx-gamepad/3d-printing)
   - STL and Fusion 360 source files
 
-The stand is designed in OpenSCAD and the source and STL files are included in the project. For my printer I had to break the stand into two halves. In order to do this there is a mortise/tenon joint to join the halves. If you're printer is big enough you can print the whole unit at once. STL files are provided for each half, the entire stand, and the keyboard cover. No matter how you print it you will need to print the keyboard cover separately.
+The stand is designed in OpenSCAD and the source and STL files are included in the project. For my printer I had to break the stand into two halves. In order to do this there is a mortise/tenon joint to join the halves. If you're printer is big enough you can print the whole unit at once. STL files are provided for each half, the entire stand, and the keyboard cover. 
+
+No matter how you print it you will need to print the offsets, screws, and keyboard cover separately.
 
 - Mortise/Tenon Joint library provided by HopefulLlama
   - [Github project](https://github.com/HopefulLlama/JointSCAD)
