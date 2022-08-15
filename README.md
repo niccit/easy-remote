@@ -19,6 +19,25 @@ In addition to the keypad this implementation will:
 - Turn on the bedroom TV automatically
 - Turn both televisions off automatically
 
+## How it works
+The project is coded in [CircuitPython](https://circuitpython.org/).
+
+You will need to create your own secrets file based on the example file included in the project. Documentation for building a secrets file can be found [here](https://learn.adafruit.com/electronic-history-of-the-day-with-pyportal/code-walkthrough-secrets-py).
+
+To better understand how to interact with the Roku devices, please visit the [Roku Developers : External Control Protocol (ECP) documentation](https://developer.roku.com/en-ca/docs/developer-program/debugging/external-control-api.md)
+
+Device information, channels, and shows are stored in the data.py file in the project.
+- device_urls : One or more Roku devices available on the network
+- shows : The shows/channels the person using this remote likes to watch
+- channels :  The Roku channel names
+- channel_numbers : The corresponding Roku channel IDs - see the ECP for how to get a channel ID
+- frndly_guide_position : Unfortunately, Frndly TV app currently doesn't support the Roku search controls. For now you have to find your channel in the guide and count how many down from the top it is and us it for this value.
+- netflix_search_int : Netflix doesn't put you back to the starting position on the search grid, so you have to note how many moves right it is from the last letter in your search to the program you want to select.
+
+### Why I chose to use a data.py file?
+I wanted the code to be flexible with as little hardcoding as possible. It's much easier to edit the data file then to make changes directly in the code.
+
+
 ## The hardware
 All the hardware is from [Adafruit](https://www.adafruit.com).
 
