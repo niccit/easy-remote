@@ -59,19 +59,20 @@ No matter how you print it you will need to print the offsets, screws, and keybo
 
 I have not included supports in the STL files. You will need to add supports into your slicer or the print will not come out as intended.
 
-For my print I used tree-like supports.
-
 Nozzle: 0.3mm
 Nozzle Temperature: 210c
 Filament:
 - PLA for the stand
+   - Color: Color change purple to blue
 - PETG for the keyboard cover
+   - Color: Transparent
+Supports: Tree
 
 - Mortise/Tenon Joint library provided by HopefulLlama
   - [Github project](https://github.com/HopefulLlama/JointSCAD)
   - [Thingiverse](https://www.thingiverse.com/groups/openscad/forums/general/topic:14842)
 - Threads library provided by rcoyler
   - [Github project](https://github.com/rcolyer/threads-scad)
-- The keycap STL file can be found on [Adafruit](https://learn.adafruit.com)
+- The keycap STL file provided by Adafruit
   - [Custom Bluetooth Cherry MX Gamepad](https://learn.adafruit.com/custom-wireless-bluetooth-cherry-mx-gamepad/3d-printing)
   - [Thingiverse](https://www.thingiverse.com/thing:1989243)
