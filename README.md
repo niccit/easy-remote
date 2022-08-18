@@ -68,7 +68,7 @@ I have not included supports in the STL files. You will need to add supports int
       - Color: Transparent
 - Supports: Tree
 
-- Mortise/Tenon Joint library provided by HopefulLlama
+- Joint library provided by HopefulLlama
   - [Github project](https://github.com/HopefulLlama/JointSCAD)
   - [Thingiverse](https://www.thingiverse.com/groups/openscad/forums/general/topic:14842)
 - Threads library provided by rcoyler
