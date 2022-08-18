@@ -57,6 +57,7 @@ neokey = NeoKey1x4(i2c_bus, addr=0x30)
 urls = data["device_urls"]
 current_shows = data["shows"]
 current_channels = data["channels"]
+channel_ids = data["channel_numbers"]
 guide_position = data["frndly_guide_position"]
 netflix_search_int = data["netflix_search_int"]
 
@@ -82,6 +83,11 @@ show_3 = current_shows[2]
 channel_1 = current_channels[0]
 channel_2 = current_channels[1]
 channel_3 = current_channels[2]
+
+# Streaming channel IDs
+channel_id_1 = channel_ids[0];
+channel_id_2 = channel_ids[1];
+channel_id_3 = channel_ids[2];
 
 # Split longer titles into an array
 # Need to shorten longer titles to fit Matrix
@@ -111,12 +117,8 @@ vol_down = ("keypress/volumedown")
 pwr_on = ("keypress/poweron")
 #  power off
 pwr_off = ("keypress/poweroff")
-# Launch Netflix
-netflix = ("launch/12")
-# Launch Paramount+
-paramount = ("launch/31440")
-# Launch FrndlyTV
-frndly = ("launch/298229")
+# Launch a channel
+launch = ("launch/")
 # Query Active Application
 active_app = ("query/active-app")
 # Query Device State
@@ -277,24 +279,24 @@ def search_program(url=None, show=None, channel=None):
     # For ease of use I've stored this value in data.py
     channel_1_search_int = netflix_search_int
     channel_2_search_int = 6
-    channel_3_search_int = 3
 
     if channel is channel_1:
         search_int = channel_1_search_int
     elif channel is channel_2:
         search_int = channel_2_search_int
-    elif channel is channel_3:
-        search_int = channel_3_search_int
 
     show_to_search = get_show_search_array(show)
 
     for i in show_to_search:
         session.post(device_url + "keypress/Lit_" + i)
-        time.sleep(0.75)
+        time.sleep(0.25)
+
     time.sleep(2)
+
     for x in range(search_int):
         session.post(device_url + right)
         time.sleep(0.5)
+
     session.post(device_url + select)
     time.sleep(1)
 
@@ -307,6 +309,11 @@ def launch_netflix(url=None):
 
     if url:
         device_url = url
+
+    # check and see if Netflix is active, if so exit the app before starting new show
+    active_channel = get_active_app(url=url)
+    if active_channel is channel_id_1:
+        exit_netflix(url=device_url)
 
     print("launching ", show_1, " on ", channel_1, " on device ", device_url)
 
@@ -328,7 +335,7 @@ def launch_netflix(url=None):
     else:
         print("device at ", device_url, " is active")
 
-    session.post(device_url + netflix) # launch Netflix on the Roku Streambar
+    session.post(device_url + launch + channel_id_1) # launch Netflix on the Roku Streambar
     time.sleep(5)
     session.post(device_url + select) # select the active profile
     time.sleep(5)
@@ -381,8 +388,11 @@ def launch_paramount(url=None):
 
     # check and see if Netflix is active, if so exit the app before starting new show
     active_channel = get_active_app(url=url)
-    if active_channel is "12":
+    if active_channel is channel_id_1:
         exit_netflix(url=device_url)
+    elif active_channel is channel_id_2:
+        session.post(device_url + home)
+
 
     print("launching ", show_2, "on ", channel_2, " on device ", device_url)
 
@@ -405,7 +415,7 @@ def launch_paramount(url=None):
     else:
         print("device at ", device_url, " is active")
 
-    session.post(device_url + paramount) # launch Paramount+
+    session.post(device_url + launch + channel_id_2) # launch Paramount+
     time.sleep(10)
     session.post(device_url + right) # Navigate to second profile
     time.sleep(2)
@@ -435,8 +445,10 @@ def launch_frndly(url=None):
 
     # check and see if Netflix is active, if so exit the app before starting new show
     active_channel = get_active_app(url=url)
-    if active_channel is "12":
+    if active_channel is channel_id_1:
         exit_netflix(url=device_url)
+    elif active_channel is channel_id_3:
+        session.post(device_url + home)
 
     print("launching ", show_3, " on ", channel_3, " on device ", device_url)
 
@@ -458,7 +470,7 @@ def launch_frndly(url=None):
     else:
         print("device at ", device_url, " is active")
 
-    session.post(device_url + frndly) # Launch FrndlyTV
+    session.post(device_url + launch + channel_id_3) # Launch FrndlyTV
     time.sleep(10)
     # Since FrndlyTV search is non-standard, we can't search without it
     # being clunky and downright ugly

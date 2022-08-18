@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 
 use <lib/threads.scad>
-use <lib/JointSCAD.scad>
-use <lib/MortiseAndTenonJoint.scad>
+include <lib/JointSCAD.scad>
+
 $fa = 1;
 $fs = 0.4;
 
@@ -42,7 +42,7 @@ m_proportions = [0.8, 0.2, 0.8];
 
 // Tenon Joint, base
 t_dimensions = [20, 6, l_height / 2 - 5];
-t_proportions = [0.8, 0.2, 0.8];
+t_proportions = [0.7, 0.2, 0.8];
 
 // Bolts & Clearance Holes
 bolt_size = 4;
@@ -82,9 +82,9 @@ keyboard_bolt_height = 6;
 // You will need to print the keyboard cover separately
 //
 
-base_left_side();
-translate([-l_length / 2 - 0.001, 0, 0])
-	base_right_side();
+// base_left_side();
+// translate([-l_length / 2 - 0.001, 0, 0])
+// 	base_right_side();
 
 //
 // Individual pieces of the stand
@@ -93,7 +93,7 @@ translate([-l_length / 2 - 0.001, 0, 0])
 
 // Base of case, left back plate
 // back, side, top, bottom, tenon joint
-// base_left_side();
+base_left_side();
 
 // Back of case, right back plate
 // back, side, top, bottom, keyboard tray, mortise joint
@@ -103,11 +103,18 @@ translate([-l_length / 2 - 0.001, 0, 0])
 // Modules
 //
 
-module base() {
-   cube([l_length / 2, l_width,  l_height], center=true);
+module base_left() {
+   cube([l_length / 2, l_width,  l_height + 1], center=true);
 	// Stand
- 	translate([-l_length / 2 + l_height - 20  ,-(l_height / 2) / 2 + s_width / 2 + 2 - 0.001, -l_height / 2 - 4.5 ])
- 		stand(50, 25, 15);
+ 	translate([-l_length / 2 / 2 ,-(l_height / 2) / 2 + s_width / 2 + 2 - 0.001, -l_height / 2 - 4.5 ])
+ 		stand(30, 25, 8.5);
+}
+
+module base_right() {
+   cube([l_length / 2, l_width,  l_height + 1], center=true);
+	// Stand
+ 	translate([l_length / 2 / 2 - 30,-(l_height / 2) / 2 + s_width / 2 + 2 - 0.001, -l_height / 2 - 4.5 ])
+ 		stand(30, 25, 8.5);
 }
 
 // Thank you Adafruit for the hardware, the support, and the community!
@@ -123,7 +130,7 @@ module sides() {
 
 module top() {
 	rotate([270,0,0])
-		cube([tb_length / 2, tb_width, tb_height], center=true);
+		cube([tb_length / 2, tb_width - 1, tb_height], center=true);
 }
 
 module right_bottom() {
@@ -143,7 +150,7 @@ module left_bottom() {
 }
 
 module offset_post() {
-  cylinder(r=3, h=12, center=true);
+  cylinder(r=3, h=10, center=true);
 }
 
 module offset_base() {
@@ -240,7 +247,7 @@ module keyboard_cover(num, space) {
 
 module base_left_side(){
 	difference() {
- 		base();
+ 		base_left();
 		rotate([90,90,0])
 			base_design();
 		rotate([0,90,90])
@@ -256,13 +263,13 @@ module base_left_side(){
 		translate([(l_height / 2 - 8), (l_length / 4), 0])
 			mounting_holes();
 	}
- 	translate([-l_length / 2 / 2 - 20, -3, -l_height / 2 / 2])
+ 	translate([-l_length / 2 / 2 - 20 - 0.001, -3, -l_height / 2 / 2 + 2.5])
 		tenon(t_dimensions, t_proportions);
 
 	translate([l_length / 2 - l_height / 2 + 2.3 - 0.001, s_height / 2 - l_width / 2, 0])
 		sides();
 
-	translate([-l_length / 2  / 2 + l_height / 2 + s_width / 2 / 2 - 1.25,  l_width / 2 + s_width / 2 + 6.5 - 0.001 ,l_height / 2 + 2 - 0.001])
+	translate([-l_length / 2  / 2 + l_height / 2 + s_width / 2 / 2 - 1.25,  l_width / 2 + s_width / 2 + 6.5 - 0.001 ,l_height / 2 + 2.5 - 0.001])
 		top();
 	translate([0, b_height / 2 + 7, -l_height / 2 - 2 - 0.001])
 		left_bottom();
@@ -270,7 +277,7 @@ module base_left_side(){
 
 module base_right_side() {
 	difference() {
-		base();
+		base_right();
 		rotate([90,90,0])
 			base_design();
 		rotate([0,90,90])
@@ -299,9 +306,8 @@ module base_right_side() {
 			circuit_board();
  	}
 
-	translate([-l_length / 2  / 2 + l_height / 2 + s_width / 2 / 2 - 1.25,  l_width / 2 + s_width / 2 + 6.5 - 0.001 ,l_height / 2 + 2 - 0.001])
+	translate([-l_length / 2  / 2 + l_height / 2 + s_width / 2 / 2 - 1.25,  l_width / 2 + s_width / 2 + 6.5 - 0.001 ,l_height / 2 + 2.5 - 0.001])
 		top();
 	translate([0, b_height / 2 + 7, -l_height / 2 - 2 - 0.001])
 		right_bottom();
 }
-
