@@ -59,14 +59,14 @@ No matter how you print it you will need to print the offsets, screws, and keybo
 
 I have not included supports in the STL files. You will need to add supports into your slicer or the print will not come out as intended.
 
-Nozzle: 0.3mm
-Nozzle Temperature: 210c
-Filament:
-- PLA for the stand
-   - Color: Color change purple to blue
-- PETG for the keyboard cover
-   - Color: Transparent
-Supports: Tree
+- Nozzle: 0.3mm
+- Nozzle Temperature: 210c
+- Filament:
+   - PLA for the stand
+      - Color: Color change purple to blue
+   - PETG for the keyboard cover
+      - Color: Transparent
+- Supports: Tree
 
 - Mortise/Tenon Joint library provided by HopefulLlama
   - [Github project](https://github.com/HopefulLlama/JointSCAD)
