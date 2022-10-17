@@ -16,8 +16,7 @@ This project is tailored to her watching habits, however, it can be easily modif
 
 In addition to the keypad this implementation will:
 - Interact with the TV streaming Netflix every hour to avoid the "Are you still watching message"
-- Turn on the bedroom TV automatically
-- Turn both televisions off automatically
+- Turn on the primary and secondary TVs automatically
 
 ## How it works
 The project is coded in <a href="https://circuitpython.org/" target="_blank">CircuitPython</a>
@@ -26,17 +25,18 @@ You will need to create your own secrets file based on the example file included
 
 To better understand how to interact with the Roku devices, please visit the <a href="https://developer.roku.com/en-ca/docs/developer-program/debugging/external-control-api.md" target="_blank">Roku Developers : External Control Protocol (ECP) documentation.</a>
 
-Device information, channels, and shows are stored in the data file in the project.
+All configurable data is stored in the data file:
 - device_urls : One or more Roku devices available on the network
 - shows : The shows/channels the person using this remote likes to watch
 - channels :  The Roku channel names
 - channel_numbers : The corresponding Roku channel IDs - see the ECP for how to get a channel ID
 - frndly_guide_position : Unfortunately, Frndly TV app currently doesn't support the Roku search controls. For now you have to find your channel in the guide and count how many down from the top it is and us it for this value.
 - netflix_search_int : Netflix doesn't put you back to the starting position on the search grid, so you have to note how many moves right it is from the last letter in your search to the program you want to select.
+- primary_tv_start_time : The time, stored in an array [hh, mm], you want the primary television to turn on each day
+- secondary_tv_start_time: The time, stored in an array [hh, mm], you want the secondary television to turn on each day
 
 ### Why I chose to use a data file?
 I wanted the code to be flexible with as little hard coding as possible. It's much easier to edit the data file then to make changes directly in the code.
-
 
 ## The hardware
 All the hardware is from <a href="https://www.adafruit.com" target="_blank">Adafruit.</a>
@@ -64,20 +64,30 @@ No matter how you print it you will need to print the offsets, screws, and keybo
 
 I have not included supports in the STL files. You will need to add supports into your slicer or the print will not come out as intended.
 
-- Nozzle: 0.3mm
-- Nozzle Temperature: 210c
-- Filament:
+- Filament and Slicing:
    - PLA for the stand
       - Color: Color change purple to blue
+      - Extruder: .4/240c
+      - Extruder Temp: 210c
+      - Platform Temp: 45c
+      - Supports:
+         - Yes for main case
+            - Tree-like
+            - Auto generated
+         - No for keyboard cover
+      - Brim: Yes, no brim generated in holes
    - PETG for the keyboard cover
       - Color: Transparent
-- Supports: Tree
+      - Extruder: .4/265c
+      - Extruder Temp: 240c
+      - Platform Temp: 80c
+      - Supports: Yes
+         - Linear
+         - Manually generated
+      - Raft: Yes
 
 - Joint library provided by HopefulLlama
   - <a href="https://github.com/HopefulLlama/JointSCAD" target="_blank">Github project</a>
   - <a href="https://www.thingiverse.com/groups/openscad/forums/general/topic:14842" target="_blank">Thingiverse</a>
 - Threads library provided by rcoyler
   - <a href="https://github.com/rcolyer/threads-scad" target="_blank">Github project</a>
-- The keycap STL file provided by Adafruit
-  - <a href="https://learn.adafruit.com/custom-wireless-bluetooth-cherry-mx-gamepad/3d-printing" target="_blank">Custom Bluetooth Cherry MX Gamepad</a>
-  - <a href="https://www.thingiverse.com/thing:1989243" target="_blank">Thingiverse</a>
