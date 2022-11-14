@@ -1,4 +1,3 @@
 data_myproject.py
 *.swp
 /secrets.py
-/adafruit_lib/
