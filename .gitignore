@@ -1,3 +1,4 @@
 data_myproject.py
-FlashPrint/
 *.swp
+/secrets.py
+/adafruit_lib/
