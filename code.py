@@ -11,7 +11,6 @@ import digitalio
 import re
 import displayio
 import adafruit_requests as requests
-import keypad
 from adafruit_esp32spi import adafruit_esp32spi
 import adafruit_esp32spi.adafruit_esp32spi_socket as socket
 from adafruit_bitmap_font import bitmap_font
@@ -19,9 +18,6 @@ from adafruit_matrixportal.matrix import Matrix
 from adafruit_neokey.neokey1x4 import NeoKey1x4
 from adafruit_display_text.label import Label
 from adafruit_matrixportal.network import Network
-from adafruit_seesaw.keypad import Keypad
-
-from NeoKeyTest import TestNeokey
 
 DISPLAY_WIDTH = 64
 DISPLAY_HEIGHT = 32
@@ -68,9 +64,9 @@ secondary_tv_start_time = data["secondary_tv_start_time"]
 secondary_tv_end_time = data["secondary_tv_end_time"]
 update_delay = data["update_delay"]
 interact_delay = data["interact_delay"]
+# For testing onlyu!
 test_mode = data["test_mode"]
 test_delay = data["test_delay"]
-
 
 # Setting necessary defaults
 second_tv = False
@@ -85,6 +81,8 @@ secondary_device_state = None
 primary_active_app = None
 secondary_active_app = None
 netflix_channel_id = int(channel_ids[0])
+# For testing only!
+last_test_check = None
 
 # URLs
 url_1 = ("http://" + hosts[0] + ":" + port + "/")
@@ -109,10 +107,6 @@ channel_id_1 = channel_ids[0]
 channel_id_2 = channel_ids[1]
 channel_id_3 = channel_ids[2]
 
-# For testing only!
-test = data[test_mode]
-last_test_check = None
-test_delay = data[test_delay]
 
 # --- Roku API Calls ---
 # Home
@@ -910,8 +904,7 @@ while True:
     # A small test aid. This will set the pin value at random and launch the corresponding show
     # Unfortunately I was unable to force a key press
     # So this was the next best thing
-    if test is True and time.monotonic() > last_test_check + test_delay:
-        last_test_check = time.monotonic()
+    if test_mode is True and last_test_check is not None and time.monotonic() > last_test_check + test_delay:
         counter = 0
         while counter <= 4:
             print("TEST: on iteration", counter)
@@ -941,5 +934,6 @@ while True:
             if counter < 3:
                 time.sleep(20)
 
-    time.sleep(0.05)
+    last_test_check = time.monotonic()
 
+    time.sleep(0.05)
