@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-
+import random
 # This is a very simple remote, designed for individuals with difficulty navigating
 # all the different streaming applications
 # It was designed to help a senior have less frustration while trying to watch television
@@ -11,6 +11,7 @@ import digitalio
 import re
 import displayio
 import adafruit_requests as requests
+import keypad
 from adafruit_esp32spi import adafruit_esp32spi
 import adafruit_esp32spi.adafruit_esp32spi_socket as socket
 from adafruit_bitmap_font import bitmap_font
@@ -18,6 +19,9 @@ from adafruit_matrixportal.matrix import Matrix
 from adafruit_neokey.neokey1x4 import NeoKey1x4
 from adafruit_display_text.label import Label
 from adafruit_matrixportal.network import Network
+from adafruit_seesaw.keypad import Keypad
+
+from NeoKeyTest import TestNeokey
 
 DISPLAY_WIDTH = 64
 DISPLAY_HEIGHT = 32
@@ -64,13 +68,15 @@ secondary_tv_start_time = data["secondary_tv_start_time"]
 secondary_tv_end_time = data["secondary_tv_end_time"]
 update_delay = data["update_delay"]
 interact_delay = data["interact_delay"]
-reset_tv_state = data["reset_tv_state"]
+test_mode = data["test_mode"]
+test_delay = data["test_delay"]
 
 
 # Setting necessary defaults
 second_tv = False
-default_display = True
+default_display = False
 busy = False
+cur_time = []
 last_check = None
 interact_check = None
 display_array = []
@@ -103,10 +109,10 @@ channel_id_1 = channel_ids[0]
 channel_id_2 = channel_ids[1]
 channel_id_3 = channel_ids[2]
 
-# Split longer titles into an array
-# Need to shorten longer titles to fit Matrix
-paramount_show_for_display = show_2.split()
-frndly_show_for_display = show_3.split()
+# For testing only!
+test = data[test_mode]
+last_test_check = None
+test_delay = data[test_delay]
 
 # --- Roku API Calls ---
 # Home
@@ -140,7 +146,6 @@ query_media = "query/media-player"
 # Test Call for socket availability
 dev_check = "query/chanperf"
 
-
 # --- Display ---
 matrix = Matrix()
 display = matrix.display
@@ -172,7 +177,7 @@ neokey.pixels[3] = color[4]
 
 # Update the time, synchronize board clock, and return current time
 def update_time():
-    cur_time = None
+    global cur_time
 
     while cur_time is None:
         try:
@@ -181,17 +186,17 @@ def update_time():
             print("update_time: An error occurred, retrying ... ", e)
             continue
 
-    counter = 0
-    while counter <= 2:
+    tick_tock = 0
+    while tick_tock <= 2:
         try:
             network.get_local_time()  # Synchronize Board's clock to internet
-            counter = 3
+            tick_tock = 3
         except RuntimeError as r:
             print("unable to synchronize board clock to internet. Error:", r, "attempt", counter,
                   "of 3, will retry in 2 seconds")
             continue
 
-        counter += 1
+        tick_tock += 1
         time.sleep(2)
 
     return cur_time
@@ -232,47 +237,48 @@ def set_loading_display_msg():
 def set_default_display_msg():
     global display_array, default_display
 
-    hello1 = Label(
-        font=FONT,
-        color=color[4],
-        text="{0}".format("What to Watch"))
-    bbx, bby, bbwidth, bbh = hello1.bounding_box
-    hello1.x = round(display.width / 2 - bbwidth / 2)
-    hello1.y = 4
+    if default_display is False:
+        hello1 = Label(
+            font=FONT,
+            color=color[4],
+            text="{0}".format("What to Watch"))
+        bbx, bby, bbwidth, bbh = hello1.bounding_box
+        hello1.x = round(display.width / 2 - bbwidth / 2)
+        hello1.y = 4
 
-    hello2 = Label(
-        font=FONT,
-        color=color[1],
-        text="{0}".format(show_1))
-    bbx2, bby2, bbwidth2, bbh2 = hello2.bounding_box
-    hello2.x = round(display.width / 2 - bbwidth2 / 2)
-    hello2.y = 11
+        hello2 = Label(
+            font=FONT,
+            color=color[1],
+            text="{0}".format(show_1))
+        bbx2, bby2, bbwidth2, bbh2 = hello2.bounding_box
+        hello2.x = round(display.width / 2 - bbwidth2 / 2)
+        hello2.y = 11
 
-    hello3 = Label(
-        font=FONT,
-        color=color[2],
-        text="{0}".format(paramount_show_for_display[2]))
-    bbx3, bby3, bbwidth3, bbh3 = hello3.bounding_box
-    hello3.x = round(display.width / 2 - bbwidth3 / 2)
-    hello3.y = 18
+        hello3 = Label(
+            font=FONT,
+            color=color[2],
+            text="{0}".format(show_2))
+        bbx3, bby3, bbwidth3, bbh3 = hello3.bounding_box
+        hello3.x = round(display.width / 2 - bbwidth3 / 2)
+        hello3.y = 18
 
-    hello4 = Label(
-        font=FONT,
-        color=color[3],
-        text="{0}".format(frndly_show_for_display[0]))
-    bbx4, bby4, bbwidth4, bbh4 = hello4.bounding_box
-    hello4.x = round(display.width / 2 - bbwidth4 / 2)
-    hello4.y = 25
+        hello4 = Label(
+            font=FONT,
+            color=color[3],
+            text="{0}".format(show_3))
+        bbx4, bby4, bbwidth4, bbh4 = hello4.bounding_box
+        hello4.x = round(display.width / 2 - bbwidth4 / 2)
+        hello4.y = 25
 
-    clear_display()
-    display_array = ["hello1", "hello2", "hello3", "hello4"]
+        clear_display()
+        display_array = ["hello1", "hello2", "hello3", "hello4"]
 
-    group.append(hello1)
-    group.append(hello2)
-    group.append(hello3)
-    group.append(hello4)
+        group.append(hello1)
+        group.append(hello2)
+        group.append(hello3)
+        group.append(hello4)
 
-    default_display = True
+        default_display = True
 
 
 # Set the display while launching a show
@@ -293,10 +299,10 @@ def set_watching_display(channel):
         show_text = "{0}".format(show_1)
         show_color = color[1]
     elif channel is channel_2:
-        show_text = "{0}".format(paramount_show_for_display[2])
+        show_text = "{0}".format(show_2)
         show_color = color[2]
     elif channel is channel_3:
-        show_text = "{0}".format(frndly_show_for_display[0])
+        show_text = "{0}".format(show_3)
         show_color = color[3]
 
     line1 = Label(
@@ -365,7 +371,7 @@ def retry_socket_connection(url):
     else:
         device_url = url_1
 
-    while socket_available is False and retries <= 3:
+    while socket_available is False:
         print("retry_socket_connection: testing availability of socket")
         try:
             requests.get(device_url + dev_check)
@@ -382,7 +388,7 @@ def retry_socket_connection(url):
 # Use in-channel search to locate show to watch
 # Using search as a more reliable way to find what to watch
 def search_program(url, show, channel):
-    global netflix_search_int, paramount_search_int
+    global busy
 
     if not show:
         print("search_program: Please provide a show to use in search")
@@ -406,23 +412,25 @@ def search_program(url, show, channel):
     else:
         search_int = 0
 
-    show_to_search = get_show_search_array(show)
+    busy = True
 
     socket_status = retry_socket_connection(device_url)
 
     if socket_status is True:
-        for i in show_to_search:
+        for i in show:
             requests.post(device_url + "keypress/Lit_" + i)
             time.sleep(0.25)
 
-        time.sleep(2)
+        time.sleep(1)
 
         for x in range(search_int):
             requests.post(device_url + right)
-            time.sleep(0.5)
+            time.sleep(0.25)
 
         requests.post(device_url + select)
         time.sleep(1)
+
+    busy = False
 
 
 # Launch the Netflix app on target device
@@ -555,19 +563,19 @@ def launch_paramount(url):
             requests.post(device_url + launch + channel_id_2)  # launch Paramount+
             time.sleep(10)
             requests.post(device_url + right)  # Navigate to second profile
-            time.sleep(2)
+            time.sleep(1)
             requests.post(device_url + select)  # Select second profile
-            time.sleep(6)
+            time.sleep(5)
             requests.post(device_url + left)  # Access lef nav
-            time.sleep(0.5)
+            time.sleep(1)
             requests.post(device_url + up)  # Move up to enter Search
-            time.sleep(0.5)
+            time.sleep(1)
             requests.post(device_url + select)  # Enter Search
-            time.sleep(0.5)
+            time.sleep(1)
             search_program(url=device_url, show=show_2, channel=channel_2)
-            time.sleep(0.5)
+            time.sleep(1)
             requests.post(device_url + select)  # Select the searched show
-            time.sleep(2)
+            time.sleep(1)
             requests.post(device_url + select)  # Start playing the show
 
             time.sleep(2)
@@ -850,32 +858,22 @@ while True:
                 secondary_active_app = get_active_app(url_1)
                 print("secondary device active app is", secondary_active_app)
 
-            # Turn on the primary TV each morning
-            if now[3] == primary_tv_start_time[0] and now[4] >= primary_tv_start_time[1]:
-                launch_netflix(url_1)
-
-            # Turn off the primary TV each night
-            # if now[3] == primary_tv_end_time[0] and now[4] >= primary_tv_end_time[1]:
-            #     power_off(url_1)
-
-            # Turn on the secondary TV each evening
-            if now[3] == secondary_tv_start_time[0] and now[4] >= secondary_tv_start_time[1]:
-                second_tv = True
-                launch_netflix(url_2)
-
-            if now[3] == secondary_tv_end_time[0] and now[4] >= secondary_tv_end_time[1]:
-                power_off(url_2)
-
             # Set the default menu of what to watch
             set_default_display_msg()
             print("Ready to begin handling devices")
-
             last_check = time.monotonic()
             busy = False
 
     # If either TV is on and Netflix is playing
     # Interact with the TV to avoid the "are you still watching message"
+    # Also handle turning on/off each device daily
     if interact_check is None or time.monotonic() > interact_check + interact_delay:
+        now = cur_time
+
+        if now is []:
+            print("cur_time not set, need to get value")
+            now = update_time()
+
         if busy is True:
             while busy is True:
                 print("another process in progress, will retry in 2 seconds")
@@ -889,6 +887,59 @@ while True:
             if secondary_device_state is "active":
                 if secondary_active_app == netflix_channel_id:
                     interact_with_tv(url_2)
+            busy = False
+
+            # Turn on the primary TV each morning
+            if now[3] == primary_tv_start_time[0] and now[4] >= primary_tv_start_time[1]:
+                launch_netflix(url_1)
+
+            # Turn off the primary TV each night
+            if now[3] == primary_tv_end_time[0] and now[4] >= primary_tv_end_time[1]:
+                power_off(url_1)
+
+            # Turn on the secondary TV each evening
+            if now[3] == secondary_tv_start_time[0] and now[4] >= secondary_tv_start_time[1]:
+                second_tv = True
+                launch_netflix(url_2)
+
+            if now[3] == secondary_tv_end_time[0] and now[4] >= secondary_tv_end_time[1]:
+                power_off(url_2)
 
             interact_check = time.monotonic()
-            busy = False
+
+    # A small test aid. This will set the pin value at random and launch the corresponding show
+    # Unfortunately I was unable to force a key press
+    # So this was the next best thing
+    if test is True and time.monotonic() > last_test_check + test_delay:
+        last_test_check = time.monotonic()
+        counter = 0
+        while counter <= 4:
+            print("TEST: on iteration", counter)
+            neokey_key = random.choice([0, 1, 2, 3])
+            if neokey_key == 0:
+                print("testing key", neokey_key)
+                neokey.digital_write(neokey_key, launch_netflix(url_1))
+                time.sleep(2)
+                neokey.digital_write(neokey_key)
+            elif neokey_key == 1:
+                print("testing key", neokey_key)
+                neokey.digital_write(neokey_key, launch_paramount(url_1))
+                time.sleep(2)
+                neokey.digital_write(neokey_key)
+            elif neokey_key == 2:
+                print("testing key", neokey_key)
+                neokey.digital_write(neokey_key, launch_frndly(url_1))
+                time.sleep(2)
+                neokey.digital_write(neokey_key)
+            elif neokey_key == 3:
+                print("testing key", neokey_key)
+                neokey.digital_write(neokey_key, power_off(url_1))
+                time.sleep(2)
+                neokey.digital_write(neokey_key)
+
+            counter += 1
+            if counter < 3:
+                time.sleep(20)
+
+    time.sleep(0.05)
+
