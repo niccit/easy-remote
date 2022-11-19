@@ -81,7 +81,7 @@ primary_active_app = None
 secondary_active_app = None
 netflix_channel_id = int(channel_ids[0])
 # For testing only!
-last_test_check = None
+last_test_check = time.monotonic()
 
 # URLs
 url_1 = ("http://" + hosts[0] + ":" + port + "/")
@@ -360,22 +360,26 @@ def get_show_search_array(show):
 # After a while an OutOfRetries
 # Have each method call this prior to making the actual call to the device
 def send_request(url, command):
-    retries = 0
     return_result = None
+    loop = True
+    retries = 0
 
-    while retries < 4:
+    while loop is True:
         try:
             if "query/active-app" in command:
                 return_result = requests.get(url + active_app)
-                retries = 4
+                loop = False
             else:
                 requests.post(url + command)
                 return_result = True
-                retries = 4
+                loop = False
         except Exception as e:
-            print("send_request: Caught generic exception", e, "retrying socket connection in 2 seconds, attempt:", retries)
+            print("send_request: Caught generic exception", e, "retrying in 2 seconds")
             retries += 1
             pass
+
+        if "media-player" in command and retries > 3:
+            loop = False
 
         time.sleep(2)
 
@@ -463,20 +467,20 @@ def launch_netflix(url):
         channel_call = (launch + channel_id_1)
 
         send_request(device_url, channel_call)  # launch Netflix
-        time.sleep(20)
-        send_request(device_url, select)  # select the active profile
         time.sleep(5)
+        send_request(device_url, select)  # select the active profile
+        time.sleep(2)
         send_request(device_url, left)  # open the left nav menu
-        time.sleep(1)
+        time.sleep(0.5)
         send_request(device_url, up)  # navigate to search
-        time.sleep(1)
+        time.sleep(0.5)
         send_request(device_url, select)  # enter search
-        time.sleep(1)
+        time.sleep(0.5)
         # Depending on what type of Roku you're using, you might need this extra navigation
         #    send_request(device_url, left)  # Move from Top Searches to the search box
-        #    time.sleep(1)
+        #    time.sleep(0.5)
         search_program(device_url, show_1, channel_1)
-        time.sleep(1)
+        time.sleep(0.5)
         send_request(device_url, select)  # Star the selected show
 
         time.sleep(2)
@@ -502,12 +506,12 @@ def exit_netflix(url):
     print("exiting ", channel_1)
     for x in range(4):  # Get back to left nav
         send_request(device_url, back)
-        time.sleep(1)
+        time.sleep(0.5)
     send_request(device_url, down)  # Navigate to home, our start point
     time.sleep(0.25)
     send_request(device_url, select)  # Select it to save it
     time.sleep(0.5)
-    send_request(device_url, back)  # Return to left nav
+    send_request(device_url, left)  # Return to left nav
     time.sleep(0.25)
     for i in range(3):  # Move up to the profile
         send_request(device_url, up)
@@ -552,21 +556,21 @@ def launch_paramount(url):
         channel_call = (launch + channel_id_2)
 
         send_request(device_url, channel_call)  # launch Paramount+
-        time.sleep(10)
-        send_request(device_url, right)  # Navigate to second profile
-        time.sleep(1)
-        send_request(device_url, select)  # Select second profile
         time.sleep(5)
+        send_request(device_url, right)  # Navigate to second profile
+        time.sleep(2)
+        send_request(device_url, select)  # Select second profile
+        time.sleep(1)
         send_request(device_url, left)  # Access lef nav
-        time.sleep(1)
+        time.sleep(0.5)
         send_request(device_url, up)  # Move up to enter Search
-        time.sleep(1)
+        time.sleep(0.5)
         send_request(device_url, select)  # Enter Search
-        time.sleep(1)
+        time.sleep(0.5)
         search_program(url=device_url, show=show_2, channel=channel_2)
-        time.sleep(1)
+        time.sleep(0.5)
         send_request(device_url, select)  # Select the searched show
-        time.sleep(1)
+        time.sleep(0.5)
         send_request(device_url, select)  # Start playing the show
 
         time.sleep(2)
@@ -612,7 +616,7 @@ def launch_frndly(url):
         channel_call = (launch + channel_id_3)
 
         send_request(device_url, channel_call)  # Launch FrndlyTV
-        time.sleep(10)
+        time.sleep(5)
         # Since FrndlyTV search is non-standard, we can't search without it
         # being clunky and downright ugly
         # Instead navigate the guide to find the channel position
@@ -622,7 +626,7 @@ def launch_frndly(url):
             send_request(device_url, down)
             time.sleep(0.5)
         send_request(device_url, select)
-        time.sleep(1)
+        time.sleep(0.5)
         send_request(device_url, select)  # Start selected channel
 
         time.sleep(2)
@@ -704,7 +708,7 @@ def get_device_state(url):
 
     device_state = "inactive"
     max_response_time = 65535
-    host_response = max_response_time
+    host_response = max_response_time + 100
 
     if url:
         device_url = url
@@ -718,6 +722,7 @@ def get_device_state(url):
 
     try:
         host_response = esp.ping(host_ip)
+        print("host response is", host_response)
     except RuntimeError as r:
         print("get_device_state: something went wrong with host check", r)
         pass
@@ -774,6 +779,7 @@ def power_off(url):
         print("power_off: Exiting app, returning to home screen, powering off display")
 
         send_request(device_url, home)
+        time.sleep(0.5)
         send_request(device_url, pwr_off)
 
         if second_tv is True:
@@ -846,7 +852,6 @@ while True:
     # Interact with the TV to avoid the "are you still watching message"
     # Also handle turning on/off each device daily
     if interact_check is None or time.monotonic() > interact_check + interact_delay:
-
         now = get_time(False)
 
         if busy is True:
@@ -865,7 +870,8 @@ while True:
 
             # Turn on the primary TV each morning
             if now[3] == primary_tv_start_time[0] and now[4] >= primary_tv_start_time[1]:
-                launch_netflix(url_1)
+                if primary_active_app != netflix_channel_id:
+                    launch_netflix(url_1)
 
             # Turn off the primary TV each night
             if now[3] == primary_tv_end_time[0] and now[4] >= primary_tv_end_time[1]:
@@ -873,8 +879,9 @@ while True:
 
             # Turn on the secondary TV each evening
             if now[3] == secondary_tv_start_time[0] and now[4] >= secondary_tv_start_time[1]:
-                second_tv = True
-                launch_netflix(url_2)
+                if secondary_active_app != netflix_channel_id:
+                    second_tv = True
+                    launch_netflix(url_2)
 
             if now[3] == secondary_tv_end_time[0] and now[4] >= secondary_tv_end_time[1]:
                 power_off(url_2)
@@ -885,35 +892,36 @@ while True:
     # A small test aid. This will set the pin value at random and launch the corresponding show
     # Unfortunately I was unable to force a key press
     # So this was the next best thing
-    if test_mode is True and last_test_check is not None and time.monotonic() > last_test_check + test_delay:
+    if test_mode is True and time.monotonic() > last_test_check + test_delay:
+        print("TEST: Running test cycle")
         counter = 0
         while counter <= 4:
             print("TEST: on iteration", counter)
             neokey_key = random.choice([0, 1, 2, 3])
             if neokey_key == 0:
-                print("testing key", neokey_key)
+                print("TEST: key", neokey_key)
                 neokey.digital_write(neokey_key, launch_netflix(url_1))
                 time.sleep(2)
-                neokey.digital_write(neokey_key)
+                neokey.digital_write(neokey_key, None)
             elif neokey_key == 1:
-                print("testing key", neokey_key)
+                print("TEST: key", neokey_key)
                 neokey.digital_write(neokey_key, launch_paramount(url_1))
                 time.sleep(2)
-                neokey.digital_write(neokey_key)
+                neokey.digital_write(neokey_key, None)
             elif neokey_key == 2:
-                print("testing key", neokey_key)
+                print("TEST: key", neokey_key)
                 neokey.digital_write(neokey_key, launch_frndly(url_1))
                 time.sleep(2)
-                neokey.digital_write(neokey_key)
+                neokey.digital_write(neokey_key, None)
             elif neokey_key == 3:
-                print("testing key", neokey_key)
+                print("TEST: key", neokey_key)
                 neokey.digital_write(neokey_key, power_off(url_1))
                 time.sleep(2)
-                neokey.digital_write(neokey_key)
+                neokey.digital_write(neokey_key, None)
 
             counter += 1
             if counter < 3:
-                time.sleep(20)
+                time.sleep(120)
 
         last_test_check = time.monotonic()
 
