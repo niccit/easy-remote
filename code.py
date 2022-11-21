@@ -819,7 +819,6 @@ def get_device_state(url):
 
     try:
         host_response = esp.ping(host_ip)
-        print("host response is", host_response)
     except RuntimeError as r:
         print("get_device_state: something went wrong with host check", r)
         pass
