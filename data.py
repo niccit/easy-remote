@@ -1,5 +1,5 @@
 data = {
-    'device_hosts': ['192.168.86.38', '192.168.86.42'],
+    'device_hosts': ['primary.device.ip.address', 'secondary.device.ip.address'],
     'service_port': '8060',  # The default port for Roku devices
     'shows': ['Good Witch', 'Star Trek: Picard', 'Hallmark Movies & Mysteries'],
     'channels': ['Netflix', 'Paramount+', 'FrndlyTV'],
