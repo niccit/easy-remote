@@ -472,7 +472,7 @@ def launch_netflix(url):
         channel_call = (launch + channel_id_1)
 
         send_request(device_url, channel_call)  # launch Netflix
-        time.sleep(5)
+        time.sleep(10)
         send_request(device_url, select)  # select the active profile
         time.sleep(2)
         send_request(device_url, left)  # open the left nav menu
@@ -565,7 +565,7 @@ def launch_pluto(url):
         channel_call = (launch + channel_id_2)
 
         send_request(device_url, channel_call)  # launch Pluto TV
-        time.sleep(7)
+        time.sleep(10)
         send_request(device_url, left)  # Open left nav
         time.sleep(0.5)
         for i in range(2):
@@ -649,7 +649,7 @@ def launch_paramount(url):
         channel_call = (launch + channel_id_2)
 
         send_request(device_url, channel_call)  # launch Paramount+
-        time.sleep(5)
+        time.sleep(10)
         send_request(device_url, right)  # Navigate to second profile
         time.sleep(2)
         send_request(device_url, select)  # Select second profile
@@ -713,7 +713,7 @@ def launch_frndly(url):
         channel_call = (launch + channel_id_3)
 
         send_request(device_url, channel_call)  # Launch FrndlyTV
-        time.sleep(5)
+        time.sleep(10)
         # Since FrndlyTV search is non-standard, we can't search without it
         # being clunky and downright ugly
         # Instead navigate the guide to find the channel position
