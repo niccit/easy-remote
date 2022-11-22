@@ -95,10 +95,11 @@ No matter how you print it you will need to print the offsets, screws, and keybo
 
 I have not included supports in the STL files. You will need to add supports into your slicer or the print will not come out as intended.
 
-The logo on the back of the stand is my 'tip of the hat' and thank you to Adafruit and the Adafruit community. Feel free to commend out the design or substitute your own.
+The logo on the back of the stand is my 'tip of the hat' and thank you to Adafruit and the Adafruit community. Feel free to comment out the design or substitute your own.
 
-Slicing software - FlashPrint
-Printer - Flashforge Adventurer 4
+- Printer - Flashforge Adventurer 4
+- Slicing software - FlashPrint
+
 
 - Filament and Slicing:
    - PLA for the stand, offset, and screws
@@ -122,6 +123,8 @@ Printer - Flashforge Adventurer 4
       - Raft: Yes
 			- Above Raft Extrusion Ratio : 75%
 			- Space to Model (Z) : 0.18mm
+
+Huge thank you to HopefulLlama and rcoyler for sharing their libraries with the OpenSCAD community!
 
 - Joint library provided by HopefulLlama
   - <a href="https://github.com/HopefulLlama/JointSCAD" target="_blank">Github project</a>
