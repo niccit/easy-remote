@@ -121,8 +121,8 @@ The logo on the back of the stand is my 'tip of the hat' and thank you to Adafru
       - Platform Temp: 80c
       - Supports: No
       - Raft: Yes
-      	- Above Raft Extrusion Ratio : 75%
-	- Space to Model (Z) : 0.18mm
+        - Above Raft Extrusion Ratio : 75%
+        - Space to Model (Z) : 0.18mm
 
 Huge thank you to HopefulLlama and rcoyler for sharing their libraries with the OpenSCAD community!
 
