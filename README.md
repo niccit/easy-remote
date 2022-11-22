@@ -31,6 +31,19 @@ You will need to create your own secrets file based on the example file included
 
 To better understand how to interact with the Roku devices, please visit the <a href="https://developer.roku.com/en-ca/docs/developer-program/debugging/external-control-api.md" target="_blank">Roku Developers : External Control Protocol (ECP) documentation.</a>
 
+Adafruit libraries this project needs:
+- adafruit_bitmap_font
+- adafruit_bus_device
+- adafruit_display_text
+- adafruit_esp32spi
+- adafruit_io
+- adafruit_neokey
+- adafruit_matrixportal
+- adafruit_minimqtt
+- adafruit_requests.mpy
+- adafruit_fake_requests.mpy
+- digitalio.mpy
+
 All configurable data is stored in the data file:
 - device_hosts : One or more Roku devices available on the network
 - service_port : The service port for the Roku device
