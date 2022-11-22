@@ -47,7 +47,7 @@ Adafruit libraries this project needs:
 All configurable data is stored in the data file:
 - device_hosts : One or more Roku devices available on the network
 - service_port : The service port for the Roku device
-- shows : The shows/channels the person using this remote likes to watch
+- shows : The shows the person using this remote likes to watch
 - channels :  The Roku channel names
 - channel_numbers : The corresponding Roku channel IDs - see the ECP for how to get a channel ID
 - frndly_guide_position : Unfortunately, Frndly TV app currently doesn't support the Roku search controls. For now you have to find your channel in the guide and count how many down from the top it is and us it for this value.
@@ -111,9 +111,9 @@ The logo on the back of the stand is my 'tip of the hat' and thank you to Adafru
          - Yes for the tenon joint on the left side
             - Linear
             - Manual
-		- Raft: Yes for the stand
-			- Above Raft Extrusion Ratio : 75%
-			- Space to Model (Z) : 0.18mm
+	 - Raft: Yes for the stand
+	    - Above Raft Extrusion Ratio : 75%
+	    - Space to Model (Z) : 0.18mm
    - PETG for the keyboard cover
       - Color: Transparent
       - Extruder: .4/265c
@@ -121,8 +121,8 @@ The logo on the back of the stand is my 'tip of the hat' and thank you to Adafru
       - Platform Temp: 80c
       - Supports: No
       - Raft: Yes
-			- Above Raft Extrusion Ratio : 75%
-			- Space to Model (Z) : 0.18mm
+      	- Above Raft Extrusion Ratio : 75%
+	- Space to Model (Z) : 0.18mm
 
 Huge thank you to HopefulLlama and rcoyler for sharing their libraries with the OpenSCAD community!
 
