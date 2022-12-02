@@ -131,3 +131,20 @@ Huge thank you to HopefulLlama and rcoyler for sharing their libraries with the 
   - <a href="https://www.thingiverse.com/groups/openscad/forums/general/topic:14842" target="_blank">Thingiverse</a>
 - Threads library provided by rcoyler
   - <a href="https://github.com/rcolyer/threads-scad" target="_blank">Github project</a>
+
+ ## FAQ
+
+ - My remote is up and running, but after about 6-8 hours it stops communicating with the devices. If I look at the REPL it says my active devices are inactive.
+   - You are likly running the default firmware on your Matrix Portal M4 board
+	- **Solution:** Upgrade the firmware, by following these [instructions](https://learn.adafruit.com/upgrading-esp32-firmware/upgrade-all-in-one-esp32-airlift-firmware).
+
+- The software periodically crashes with a seesaw error, when I reset I get the error message "No pull up found. check your wiring".
+  - **FIRST:** Ensure you're using a [STEMMA QT/Qwiic cable](https://www.adafruit.com/product/4399)
+  - I'm still digging into this one
+  - As far as I can tell so far it has to do with the I2C cable length
+  - I've tried 50mm, 145mm, and 200mm so far and the only one that doesn't get this error is the 50mm
+    - I'm updating the 3D printing files to reflect how to mount the keyboard using a 50mm cable
+  - I'm no engineer, but it has been suggested that it might be a resistance issue.
+  - As I learn more about this I'll update the readme.
+  - **Solution:** (for now) use a 50mm STEMMA QT / Qwiic cable
+
