@@ -134,7 +134,7 @@ Huge thank you to HopefulLlama and rcoyler for sharing their libraries with the 
 
  ## FAQ
 
- - My remote is up and running, but after about 6-8 hours it stops communicating with the devices and if I look at the REPL it says my active devices are inactive.
+ - My remote is up and running, but after about 6-8 hours it stops communicating with the devices. If I look at the REPL it says my active devices are inactive.
    - You are likly running the default firmware on your Matrix Portal M4 board
 	- **Solution:** Upgrade the firmware, by following these [instructions](https://learn.adafruit.com/upgrading-esp32-firmware/upgrade-all-in-one-esp32-airlift-firmware).
 
