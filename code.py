@@ -361,26 +361,31 @@ def get_show_search_array(show):
 # After a while an OutOfRetries
 # Have each method call this prior to making the actual call to the device
 def send_request(url, command):
+    global busy
     return_result = None
     loop = True
-    retries = 0
 
     while loop is True:
-        try:
-            if "query/active-app" in command:
-                return_result = requests.get(url + active_app)
-                loop = False
-            else:
-                requests.post(url + command)
-                return_result = True
-                loop = False
-        except Exception as e:
-            print("send_request: Caught generic exception", e, "retrying in 2 seconds")
-            retries += 1
-            pass
+        if busy is True:
+            print("busy doing other work, will retry in 2 seconds")
+        else:
+            busy = True
+            try:
+                if "query/active-app" in command:
+                    return_result = requests.get(url + active_app)
+                    loop = False
+                elif "query/media-player" in command:
+                    return_result = requests.get(url + query_media)
+                    loop = False
+                else:
+                    requests.post(url + command)
+                    return_result = "true"
+                    loop = False
+            except Exception as e:
+                print("send_request: Caught generic exception", e, "retrying in 2 seconds")
+                pass
 
-        if "media-player" in command and retries > 3:
-            loop = False
+            busy = False
 
         time.sleep(2)
 
@@ -390,7 +395,6 @@ def send_request(url, command):
 # Use in-channel search to locate show to watch
 # Using search as a more reliable way to find what to watch
 def search_program(url, show, channel):
-    global busy
 
     if not show:
         print("search_program: Please provide a show to use in search")
@@ -414,8 +418,6 @@ def search_program(url, show, channel):
     else:
         search_int = 0
 
-    busy = True
-
     for i in show:
         command = ("keypress/Lit_" + i)
         send_request(device_url, command)
@@ -430,15 +432,13 @@ def search_program(url, show, channel):
     send_request(device_url, select)
     time.sleep(1)
 
-    busy = False
-
 
 # Launch the Netflix app on target device
 # Select the last used profile
 # Bring up the left nav menu
 # Execute search for chosen show and select
 def launch_netflix(url):
-    global second_tv, busy
+    global second_tv
 
     if url:
         device_url = url
@@ -453,7 +453,10 @@ def launch_netflix(url):
         state = secondary_device_state
 
     if state is "active":
-        busy = True
+
+        if app not in [int(channel_id_1), int(channel_id_2), int(channel_id_3)]:
+            print("need to power on device at", device_url)
+            send_request(device_url, pwr_on)
 
         # Check and see if Netflix is active, if so exit the app before starting new show
         if app == netflix_channel_id:
@@ -494,35 +497,41 @@ def launch_netflix(url):
         time.sleep(2)
         set_default_display_msg()
 
-        busy = False
-
 
 # Because Netflix never leaves you in a known state
 # we need to exit the app every time we turn off the TV or change apps
 def exit_netflix(url):
-    global busy
 
     if url:
         device_url = url
     else:
         device_url = url_1
 
-    busy = True
-    print("exiting ", channel_1)
-    for x in range(4):  # Get back to left nav
-        send_request(device_url, back)
+    channel_state = send_request(device_url, query_media)
+    if channel_state is not False:
+        channel_state_text = channel_state.text
+
+        if "stop" in channel_state_text or "pause" in channel_state_text:
+            return_range = 3
+        else:
+            return_range = 4
+
+        print("exiting ", channel_1)
+        for x in range(return_range):  # Get back to left nav
+            send_request(device_url, back)
+            time.sleep(0.5)
+        send_request(device_url, down)  # Navigate to home, our start point
+        time.sleep(0.25)
+        send_request(device_url, select)  # Select it to save it
         time.sleep(0.5)
-    send_request(device_url, down)  # Navigate to home, our start point
-    time.sleep(0.25)
-    send_request(device_url, select)  # Select it to save it
-    time.sleep(0.5)
-    send_request(device_url, left)  # Return to left nav
-    time.sleep(0.25)
-    for i in range(3):  # Move up to the profile
-        send_request(device_url, up)
-        time.sleep(0.5)
-    send_request(device_url, select)  # Select it to land on profiles page
-    busy = False
+        send_request(device_url, left)  # Return to left nav
+        time.sleep(0.25)
+        for i in range(3):  # Move up to the profile
+            send_request(device_url, up)
+            time.sleep(0.5)
+        send_request(device_url, select)  # Select it to land on profiles page
+    else:
+        print("could not get channel state, exiting")
 
 
 # Launch Pluto TV
@@ -530,7 +539,7 @@ def exit_netflix(url):
 # This method assumes the show you want to watch
 # is in your continue watching list
 def launch_pluto(url):
-    global second_tv, busy
+    global second_tv
 
     if url:
         device_url = url
@@ -545,7 +554,9 @@ def launch_pluto(url):
         app = secondary_active_app
 
     if state is "active":
-        busy = True
+        if app not in [int(channel_id_1), int(channel_id_2), int(channel_id_3)]:
+            print("need to power on device at", device_url)
+            send_request(device_url, pwr_on)
 
         # Check to see if Netflix is active, if so exit app before starting new show
         if app == netflix_channel_id:
@@ -584,20 +595,17 @@ def launch_pluto(url):
 
         time.sleep(2)
         set_default_display_msg()
-        busy = False
 
 
 # Similar to Netflix
 # We need to exit Pluto to ensure a known starting point
 def exit_pluto(url):
-    global busy
 
     if url:
         device_url = url
     else:
         device_url = url_1
 
-    busy = True
     print("exiting ", channel_2)
     for x in range(5):  # Invoke Exit App
         send_request(device_url, back)
@@ -605,7 +613,6 @@ def exit_pluto(url):
     send_request(device_url, down)  # Navigate to Exit App in selection
     time.sleep(0.25)
     send_request(device_url, select)  # Exit app, return to home screen
-    busy = False
 
 
 # Launch Paramount+
@@ -614,7 +621,7 @@ def exit_pluto(url):
 # Move to search
 # Execute search for show and select
 def launch_paramount(url):
-    global second_tv, busy
+    global second_tv
 
     if url:
         device_url = url
@@ -629,7 +636,9 @@ def launch_paramount(url):
         app = secondary_active_app
 
     if state is "active":
-        busy = True
+        if app not in [int(channel_id_1), int(channel_id_2), int(channel_id_3)]:
+            print("need to power on device at", device_url)
+            send_request(device_url, pwr_on)
 
         # Check to see if Netflix is active, if so exit the app before starting new show
         if app == netflix_channel_id:
@@ -671,7 +680,6 @@ def launch_paramount(url):
 
         time.sleep(2)
         set_default_display_msg()
-        busy = False
 
 
 # Launch FrndlyTV
@@ -679,7 +687,7 @@ def launch_paramount(url):
 # Select that channel
 # Select Watch Live
 def launch_frndly(url):
-    global second_tv, busy
+    global second_tv
 
     if url:
         device_url = url
@@ -694,7 +702,9 @@ def launch_frndly(url):
         app = secondary_active_app
 
     if state is "active":
-        busy = True
+        if app not in [int(channel_id_1), int(channel_id_2), int(channel_id_3)]:
+            print("need to power on device at", device_url)
+            send_request(device_url, pwr_on)
 
         # Check to see if Netflix is active, if so exit the app before starting new show
         if app == netflix_channel_id:
@@ -731,13 +741,11 @@ def launch_frndly(url):
 
         time.sleep(2)
         set_default_display_msg()
-        busy = False
 
 
 # Get the active app ID
 # Used to identify when to exit Netflix
 def get_active_app(url):
-    global busy
 
     active_channel = 0
     string_to_check = "oku"
@@ -753,7 +761,6 @@ def get_active_app(url):
         app_state = secondary_device_state
 
     if app_state is "active":
-        busy = True
         print("get_active_app: Attempting to get active channel for device", device_url)
         channel = send_request(device_url, active_app)
         if channel is not None:
@@ -769,8 +776,6 @@ def get_active_app(url):
         else:
             print("get_active_app: failed to get response from device for active channel")
 
-        busy = False
-
     return active_channel
 
 
@@ -778,16 +783,14 @@ def get_active_app(url):
 # This way a user can change the channel and not run into issues
 # before the next polling
 def set_active_app(url):
-    global primary_active_app, secondary_active_app, busy
+    global primary_active_app, secondary_active_app
 
     if url:
         device_url = url
     else:
         device_url = url_1
 
-    busy = True
     app_to_set = get_active_app(device_url)
-    busy = False
 
     if device_url is url_1:
         primary_active_app = app_to_set
@@ -801,7 +804,6 @@ def set_active_app(url):
 # The remote won't try to launch an app if the device
 # cannot be pinged successfully
 def get_device_state(url):
-    global busy
 
     device_state = "inactive"
     max_response_time = 65535
@@ -824,11 +826,9 @@ def get_device_state(url):
         pass
 
     if host_response < max_response_time:
-        busy = True
         print("get_device_state: querying", device_url, "for status")
-        if send_request(device_url, query_media) is True:
+        if send_request(device_url, query_media) is not None:
             device_state = "active"
-        busy = False
 
     return device_state
 
@@ -837,22 +837,19 @@ def get_device_state(url):
 # Since we don't worry about that on these devices, interacting
 # with the TV periodically will prevent them from popping up
 def interact_with_tv(url):
-    global busy
 
     if url:
         device_url = url
     else:
         device_url = url_1
 
-    busy = True
     print("interact_with_tv: Interacting with TV to avoid Netflix prompt")
     send_request(device_url, up)
-    busy = False
 
 
 # Exit current running app and power down the Roku TV or put the Roku device into sleep mode
 def power_off(url):
-    global second_tv, busy
+    global second_tv
 
     if url:
         device_url = url
@@ -867,7 +864,6 @@ def power_off(url):
         app = secondary_active_app
 
     if state is "active":
-        busy = True
 
         # Check to see if Netflix is active, is so exit the app before starting new show
         if app == netflix_channel_id:
@@ -889,7 +885,6 @@ def power_off(url):
 
         time.sleep(5)
         set_active_app(device_url)
-        busy = False
 
 
 # --- Main ---
@@ -912,41 +907,34 @@ while True:
     # which is set in the data.py file
     # If we don't do this, Netflix will prompt "Are you still watching"
     if last_check is None or time.monotonic() > last_check + update_delay:
-        if busy is True:
-            while busy is True:
-                print("Currently busy with other work, will retry in 2 seconds.")
-                time.sleep(2)
-        else:
-            busy = True
-            # Set loading display
-            set_loading_display_msg()
+        # Set loading display
+        set_loading_display_msg()
 
-            # Get current time
-            now = get_time(True)
+        # Get current time
+        now = get_time(True)
 
-            # Get the state of the primary TV
-            primary_device_state = get_device_state(url_1)
-            print("primary device state is", primary_device_state)
+        # Get the state of the primary TV
+        primary_device_state = get_device_state(url_1)
+        print("primary device state is", primary_device_state)
 
-            # Get the state of the secondary TV
-            secondary_device_state = get_device_state(url_2)
-            print("secondary device state is", secondary_device_state)
+        # Get the state of the secondary TV
+        secondary_device_state = get_device_state(url_2)
+        print("secondary device state is", secondary_device_state)
 
-            # Get active app for primary TV
-            if primary_device_state is "active":
-                primary_active_app = get_active_app(url_1)
-                print("primary device active app is", primary_active_app)
+        # Get active app for primary TV
+        if primary_device_state is "active":
+            primary_active_app = get_active_app(url_1)
+            print("primary device active app is", primary_active_app)
 
-            # Get active app for secondary TV
-            if secondary_device_state is "active":
-                secondary_active_app = get_active_app(url_1)
-                print("secondary device active app is", secondary_active_app)
+        # Get active app for secondary TV
+        if secondary_device_state is "active":
+            secondary_active_app = get_active_app(url_1)
+            print("secondary device active app is", secondary_active_app)
 
-            # Set the default menu of what to watch
-            set_default_display_msg()
-            print("Ready to begin handling devices")
-            last_check = time.monotonic()
-            busy = False
+        # Set the default menu of what to watch
+        set_default_display_msg()
+        print("Ready to begin handling devices")
+        last_check = time.monotonic()
 
     # If either TV is on and Netflix is playing
     # Interact with the TV to avoid the "are you still watching message"
@@ -954,38 +942,31 @@ while True:
     if interact_check is None or time.monotonic() > interact_check + interact_delay:
         now = get_time(False)
 
-        if busy is True:
-            while busy is True:
-                print("another process in progress, will retry in 2 seconds")
-                time.sleep(2)
-        else:
-            busy = True
-            if primary_device_state is "active":
-                if primary_active_app == netflix_channel_id:
-                    interact_with_tv(url_1)
+        if primary_device_state is "active":
+            if primary_active_app == netflix_channel_id:
+                interact_with_tv(url_1)
 
-            if secondary_device_state is "active":
-                if secondary_active_app == netflix_channel_id:
-                    interact_with_tv(url_2)
+        if secondary_device_state is "active":
+            if secondary_active_app == netflix_channel_id:
+                interact_with_tv(url_2)
 
-            # Turn on the primary TV each morning
-            if now[3] == primary_tv_start_time[0] and now[4] >= primary_tv_start_time[1]:
-                if primary_active_app != netflix_channel_id:
-                    launch_netflix(url_1)
+        # Turn on the primary TV each morning
+        if now[3] == primary_tv_start_time[0] and now[4] >= primary_tv_start_time[1]:
+            if primary_active_app != netflix_channel_id:
+                launch_netflix(url_1)
 
-            # Turn off the primary TV each night
-            if now[3] == primary_tv_end_time[0] and now[4] >= primary_tv_end_time[1]:
-                power_off(url_1)
+        # Turn off the primary TV each night
+        if now[3] == primary_tv_end_time[0] and now[4] >= primary_tv_end_time[1]:
+            power_off(url_1)
 
-            # Turn on the secondary TV each evening
-            if now[3] == secondary_tv_start_time[0] and now[4] >= secondary_tv_start_time[1]:
-                if secondary_active_app != netflix_channel_id:
-                    second_tv = True
-                    launch_netflix(url_2)
+        # Turn on the secondary TV each evening
+        if now[3] == secondary_tv_start_time[0] and now[4] >= secondary_tv_start_time[1]:
+            if secondary_active_app != netflix_channel_id:
+                second_tv = True
+                launch_netflix(url_2)
 
-            if now[3] == secondary_tv_end_time[0] and now[4] >= secondary_tv_end_time[1]:
-                power_off(url_2)
-            busy = False
+        if now[3] == secondary_tv_end_time[0] and now[4] >= secondary_tv_end_time[1]:
+            power_off(url_2)
 
         interact_check = time.monotonic()
 
