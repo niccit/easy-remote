@@ -135,7 +135,7 @@ Huge thank you to HopefulLlama and rcoyler for sharing their libraries with the 
  ## FAQ
 
  - My remote is up and running, but after about 6-8 hours it stops communicating with the devices. If I look at the REPL it says my active devices are inactive.
-   - You are likly running the default firmware on your Matrix Portal M4 board
+   - You are likely running the default firmware on your Matrix Portal M4 board
 	- **Solution:** Upgrade the firmware, by following these [instructions](https://learn.adafruit.com/upgrading-esp32-firmware/upgrade-all-in-one-esp32-airlift-firmware).
 
 - The software periodically crashes with a seesaw error, when I reset I get the error message "No pull up found. check your wiring".
@@ -147,4 +147,8 @@ Huge thank you to HopefulLlama and rcoyler for sharing their libraries with the 
   - I'm no engineer, but it has been suggested that it might be a resistance issue.
   - As I learn more about this I'll update the readme.
   - **Solution:** (for now) use a 50mm STEMMA QT / Qwiic cable
+
+<img src="docs/remote_with_side_mount_keyboard_front.jpg" width="400" height="400"/>
+
+<img src="docs/remote_with_side_mount_keyboard_side.jpg" width="400" height ="400"/>
 
