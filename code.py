@@ -1,10 +1,11 @@
 # SPDX-License-Identifier: MIT
-import random
-# This is a very simple remote, designed for individuals with difficulty navigating
 # all the different streaming applications
 # It was designed to help a senior have less frustration while trying to watch television
 
+# This is a very simple remote, designed for individuals with difficulty navigating
+
 import time
+import random
 import board
 import busio
 import digitalio
@@ -365,6 +366,8 @@ def send_request(url, command):
     return_result = None
     loop = True
 
+    print("busy state is", busy)
+
     while loop is True:
         if busy is True:
             print("busy doing other work, will retry in 2 seconds")
@@ -576,7 +579,7 @@ def launch_pluto(url):
         channel_call = (launch + channel_id_2)
 
         send_request(device_url, channel_call)  # launch Pluto TV
-        time.sleep(10)
+        time.sleep(12)
         send_request(device_url, left)  # Open left nav
         time.sleep(0.5)
         for i in range(2):
@@ -928,7 +931,7 @@ while True:
 
         # Get active app for secondary TV
         if secondary_device_state is "active":
-            secondary_active_app = get_active_app(url_1)
+            secondary_active_app = get_active_app(url_2)
             print("secondary device active app is", secondary_active_app)
 
         # Set the default menu of what to watch
@@ -962,6 +965,7 @@ while True:
         # Turn on the secondary TV each evening
         if now[3] == secondary_tv_start_time[0] and now[4] >= secondary_tv_start_time[1]:
             if secondary_active_app != netflix_channel_id:
+                print("it's time to start the bedroom tv")
                 second_tv = True
                 launch_netflix(url_2)
 
