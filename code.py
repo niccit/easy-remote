@@ -366,8 +366,6 @@ def send_request(url, command):
     return_result = None
     loop = True
 
-    print("busy state is", busy)
-
     while loop is True:
         if busy is True:
             print("busy doing other work, will retry in 2 seconds")
@@ -965,7 +963,6 @@ while True:
         # Turn on the secondary TV each evening
         if now[3] == secondary_tv_start_time[0] and now[4] >= secondary_tv_start_time[1]:
             if secondary_active_app != netflix_channel_id:
-                print("it's time to start the bedroom tv")
                 second_tv = True
                 launch_netflix(url_2)
 
