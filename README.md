@@ -158,7 +158,7 @@ Huge thank you to HopefulLlama and rcoyler for sharing their libraries with the 
 
 <img src="docs/remote_with_side_mount_keyboard_side.jpg" width="400" height ="400"/>
 
-- Every so often the screen is stick on "Loading Please Wait"
+- Every so often the screen is stuck on "Loading Please Wait"
    - See the To-Do list
 
 - Every so often the remote is unresponsive when pressing a button or it takes a long time to start handling the button request
