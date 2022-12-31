@@ -132,6 +132,12 @@ Huge thank you to HopefulLlama and rcoyler for sharing their libraries with the 
 - Threads library provided by rcoyler
   - <a href="https://github.com/rcolyer/threads-scad" target="_blank">Github project</a>
 
+## To-Do
+
+- Switch to a socketpool
+   - I'm hoping this helps with overall stability
+	- In addition it will allow the user to push a button while backround checks and maintenance tasks are happening
+
  ## FAQ
 
  - My remote is up and running, but after about 6-8 hours it stops communicating with the devices. If I look at the REPL it says my active devices are inactive.
@@ -147,4 +153,11 @@ Huge thank you to HopefulLlama and rcoyler for sharing their libraries with the 
   - I'm no engineer, but it has been suggested that it might be a resistance issue.
   - As I learn more about this I'll update the readme.
   - **Solution:** (for now) use a 50mm STEMMA QT / Qwiic cable
+
+- Every so often the screen is stick on "Loading Please Wait"
+   - See the To-Do list
+
+- Every so often the remote is unresponsive when pressing a button or it takes a long time to start handling the button request
+   - See the To-Do list
+
 
