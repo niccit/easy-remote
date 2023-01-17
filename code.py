@@ -362,7 +362,7 @@ def get_show_search_array(show):
 # Have each method call this prior to making the actual call to the device
 def send_request(url, command):
     global busy
-    return_result = None
+    result = None
     loop = True
 
     while loop is True:
@@ -372,14 +372,19 @@ def send_request(url, command):
             busy = True
             try:
                 if "query/active-app" in command:
-                    return_result = requests.get(url + active_app)
+                    response = requests.get(url + active_app)
+                    result = response.text
+                    response.close()
                     loop = False
                 elif "query/media-player" in command:
-                    return_result = requests.get(url + query_media)
+                    response = requests.get(url + query_media)
+                    result = response.text
+                    response.close()
                     loop = False
                 else:
-                    requests.post(url + command)
-                    return_result = "true"
+                    response = requests.post(url + command)
+                    result = "true"
+                    response.close()
                     loop = False
             except Exception as e:
                 print("send_request: Caught generic exception", e, "retrying in 2 seconds")
@@ -387,9 +392,9 @@ def send_request(url, command):
 
             busy = False
 
-        time.sleep(2)
+    esp.socket_close(0)
 
-    return return_result
+    return result
 
 
 # Use in-channel search to locate show to watch
@@ -421,13 +426,13 @@ def search_program(url, show, channel):
     for i in show:
         command = ("keypress/Lit_" + i)
         send_request(device_url, command)
-        time.sleep(0.25)
+        time.sleep(0.5)
 
     time.sleep(1)
 
     for x in range(search_int):
         send_request(device_url, right)
-        time.sleep(0.25)
+        time.sleep(0.5)
 
     send_request(device_url, select)
     time.sleep(1)
@@ -475,20 +480,20 @@ def launch_netflix(url):
         channel_call = (launch + channel_id_1)
 
         send_request(device_url, channel_call)  # launch Netflix
-        time.sleep(10)
+        time.sleep(15)
         send_request(device_url, select)  # select the active profile
         time.sleep(2)
         send_request(device_url, left)  # open the left nav menu
-        time.sleep(0.5)
+        time.sleep(1)
         send_request(device_url, up)  # navigate to search
-        time.sleep(0.5)
+        time.sleep(1)
         send_request(device_url, select)  # enter search
-        time.sleep(0.5)
+        time.sleep(1)
         # Depending on what type of Roku you're using, you might need this extra navigation
         #    send_request(device_url, left)  # Move from Top Searches to the search box
-        #    time.sleep(0.5)
+        #    time.sleep(1)
         search_program(device_url, show_1, channel_1)
-        time.sleep(0.5)
+        time.sleep(1)
         send_request(device_url, select)  # Star the selected show
 
         time.sleep(2)
@@ -507,10 +512,8 @@ def exit_netflix(url):
     else:
         device_url = url_1
 
-    channel_state = send_request(device_url, query_media)
-    if channel_state is not False:
-        channel_state_text = channel_state.text
-
+    channel_state_text = send_request(device_url, query_media)
+    if channel_state_text is not False:
         if "stop" in channel_state_text or "pause" in channel_state_text:
             return_range = 3
         else:
@@ -519,16 +522,16 @@ def exit_netflix(url):
         print("exiting ", channel_1)
         for x in range(return_range):  # Get back to left nav
             send_request(device_url, back)
-            time.sleep(0.5)
+            time.sleep(1)
         send_request(device_url, down)  # Navigate to home, our start point
-        time.sleep(0.25)
+        time.sleep(1)
         send_request(device_url, select)  # Select it to save it
-        time.sleep(0.5)
+        time.sleep(1)
         send_request(device_url, left)  # Return to left nav
-        time.sleep(0.25)
+        time.sleep(1)
         for i in range(3):  # Move up to the profile
             send_request(device_url, up)
-            time.sleep(0.5)
+            time.sleep(1)
         send_request(device_url, select)  # Select it to land on profiles page
     else:
         print("could not get channel state, exiting")
@@ -578,17 +581,19 @@ def launch_pluto(url):
         send_request(device_url, channel_call)  # launch Pluto TV
         time.sleep(10)
         send_request(device_url, left)  # Open left nav
-        time.sleep(0.5)
+        time.sleep(1)
         for i in range(2):
             send_request(device_url, down)  # Navigate to On Demand from menu
-            time.sleep(0.5)
+            time.sleep(1)
         send_request(device_url, select)  # Select On Demand
-        time.sleep(0.5)
+        time.sleep(1)
         send_request(device_url, down)  # Navigate to continue watching
-        time.sleep(0.5)
+        time.sleep(1)
+        send_request(device_url, down)  # Navigate to my list
+        time.sleep(1)
         for i in range(3):
-            send_request(device_url, select)  # Select show from continue watching list
-            time.sleep(0.5)
+            send_request(device_url, select)  # Select show from my list
+            time.sleep(1)
 
         time.sleep(2)
         set_active_app(device_url)
@@ -609,9 +614,9 @@ def exit_pluto(url):
     print("exiting ", channel_2)
     for x in range(5):  # Invoke Exit App
         send_request(device_url, back)
-        time.sleep(0.5)
+        time.sleep(1)
     send_request(device_url, down)  # Navigate to Exit App in selection
-    time.sleep(0.25)
+    time.sleep(1)
     send_request(device_url, select)  # Exit app, return to home screen
 
 
@@ -664,15 +669,15 @@ def launch_paramount(url):
         send_request(device_url, select)  # Select second profile
         time.sleep(1)
         send_request(device_url, left)  # Access lef nav
-        time.sleep(0.5)
+        time.sleep(1)
         send_request(device_url, up)  # Move up to enter Search
-        time.sleep(0.5)
+        time.sleep(1)
         send_request(device_url, select)  # Enter Search
-        time.sleep(0.5)
+        time.sleep(1)
         search_program(url=device_url, show=show_2, channel=channel_2)
-        time.sleep(0.5)
+        time.sleep(1)
         send_request(device_url, select)  # Select the searched show
-        time.sleep(0.5)
+        time.sleep(1)
         send_request(device_url, select)  # Start playing the show
 
         time.sleep(2)
@@ -731,9 +736,9 @@ def launch_frndly(url):
         # the channel sort in settings this will break
         for i in range(guide_position):
             send_request(device_url, down)
-            time.sleep(0.5)
+            time.sleep(1)
         send_request(device_url, select)
-        time.sleep(0.5)
+        time.sleep(1)
         send_request(device_url, select)  # Start selected channel
 
         time.sleep(2)
@@ -762,9 +767,8 @@ def get_active_app(url):
 
     if app_state is "active":
         print("get_active_app: Attempting to get active channel for device", device_url)
-        channel = send_request(device_url, active_app)
-        if channel is not None:
-            channel_text = channel.text
+        channel_text = send_request(device_url, active_app)
+        if channel_text is not None:
             regex = re.compile("[\r\n]")
             parsed_response = regex.split(channel_text)
             if string_to_check not in parsed_response[2]:
@@ -875,7 +879,7 @@ def power_off(url):
         print("power_off: Exiting app, returning to home screen, powering off display")
 
         send_request(device_url, home)
-        time.sleep(0.5)
+        time.sleep(1)
         send_request(device_url, pwr_off)
 
         if second_tv is True:
