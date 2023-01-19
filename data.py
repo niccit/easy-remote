@@ -9,8 +9,10 @@ data = {
     'paramount_search_int': 6,
     'primary_tv_start_time': [6, 29],
     'primary_tv_end_time': [21, 00],
+    'primary_tv_channel': "PlutoTv", # Which show should we launch each morning on the primary TV
     'secondary_tv_start_time': [19, 29],
     'secondary_tv_end_time': [22, 00],
+    'secondary_tv_channel': "Netflix", # Which show should we launch each evening on the secondary TV
     'update_delay': 3600,  # Each hour perform general housekeeping
     'interact_delay': 1200,  # Every 20 minutes perform time specific tasks
     'test_mode': False,  # This is only used for testing purposes - it should normally be FALSE
