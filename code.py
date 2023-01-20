@@ -406,6 +406,11 @@ def send_request(url, command):
     loop = True
     req_counter = 0
 
+    if url is url_1:
+        app = primary_active_app
+    else:
+        app = secondary_active_app
+
     while loop is True:
         if busy is True:
             print("busy doing other work, will retry in 2 seconds")
@@ -423,6 +428,11 @@ def send_request(url, command):
                     response.close()
                     loop = False
                 else:
+                    if req_counter > 0 and app is channel_2:
+                        special_response = requests.get(url + left)
+                        special_response.close()
+                        esp.socket_close(0)
+                        time.sleep(1)
                     response = requests.post(url + command)
                     result = "true"
                     response.close()
@@ -430,7 +440,6 @@ def send_request(url, command):
             except Exception as e:
                 print("send_request: Caught generic exception", e, "retrying in 2 seconds")
                 req_counter += 1
-                print("counter is", req_counter)
                 if req_counter == 4:
                     print("made 5 attempts, giving up")
                     loop = False
@@ -1030,13 +1039,13 @@ while True:
 
         # Turn on the primary TV each morning
         if now[3] == primary_tv_start_time[0] and now[4] >= primary_tv_start_time[1]:
-            if primary_tv_channel is netflix_channel_id:
+            if primary_tv_channel is channel_1:
                 if primary_active_app != netflix_channel_id:
                     launch_netflix(url_1)
-            elif primary_tv_channel is pluto_channel_id:
+            elif primary_tv_channel is channel_2:
                 if primary_active_app != pluto_channel_id:
                     launch_pluto(url_1)
-            elif primary_tv_channel is frndly_channel_id:
+            elif primary_tv_channel is channel_3:
                 launch_frndly(url_1)
             else:
                 if primary_active_app != netflix_channel_id:
@@ -1048,19 +1057,19 @@ while True:
 
         # Turn on the secondary TV each evening
         if now[3] == secondary_tv_start_time[0] and now[4] >= secondary_tv_start_time[1]:
-            if secondary_tv_channel is netflix_channel_id:
+            if secondary_tv_channel is channel_1:
                 if secondary_active_app != netflix_channel_id:
                     second_tv = True
                     starting_secondary_tv_status_msg()
                     launch_netflix(url_2)
                     set_default_display_msg()
-            elif secondary_tv_channel is pluto_channel_id:
+            elif secondary_tv_channel is channel_2:
                 if secondary_active_app != pluto_channel_id:
                     second_tv = True
                     starting_secondary_tv_status_msg()
                     launch_pluto(url_2)
                     set_default_display_msg()
-            elif secondary_tv_channel is frndly_channel_id:
+            elif secondary_tv_channel is channel_3:
                 if secondary_active_app != frndly_channel_id:
                     second_tv = True
                     starting_secondary_tv_status_msg()
