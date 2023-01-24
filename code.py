@@ -426,30 +426,30 @@ def send_request(url, command):
                     response = requests.get(url + query_media)
                     result = response.text
                     response.close()
-                    loop = False
-                else:
                     if req_counter > 0 and app is channel_2:
-                        special_response = requests.get(url + left)
-                        special_response.close()
                         esp.socket_close(0)
                         time.sleep(1)
+                        response = requests.post(url + left)
+                        response.close()
+                    loop = False
+                else:
                     response = requests.post(url + command)
                     result = "true"
                     response.close()
                     loop = False
             except Exception as e:
-                print("send_request: Caught generic exception", e, "retrying in 2 seconds")
+                print("send_request: Caught generic exception", e, "retrying in 2 seconds", "counter is", req_counter)
+                if req_counter > 0:
+                    print("trying call again in 2 seconds", url + command)
                 req_counter += 1
                 if req_counter == 4:
                     print("made 5 attempts, giving up")
                     loop = False
                 else:
+                    print("closing socket for cleanup purposes")
                     esp.socket_close(0)
-
                 time.sleep(2)
-
             busy = False
-
     esp.socket_close(0)
 
     return result
@@ -571,16 +571,19 @@ def exit_netflix(url):
         device_url = url_1
 
     channel_state_text = send_request(device_url, query_media)
+    print("channel state is", channel_state_text)
     if channel_state_text is not False:
         if "stop" in channel_state_text or "pause" in channel_state_text:
+            print("using return range 3")
             return_range = 3
         else:
+            print("using return range 4")
             return_range = 4
 
         print("exiting ", channel_1)
         for x in range(return_range):  # Get back to left nav
-            send_request(device_url, back)
             time.sleep(1)
+            send_request(device_url, back)
         send_request(device_url, down)  # Navigate to home, our start point
         time.sleep(1)
         send_request(device_url, select)  # Select it to save it
@@ -646,6 +649,7 @@ def launch_pluto(url):
         while wait_for_start is True:
             if "<is_live>true</is_live>" in send_request(url, query_media):
                 wait_for_start = False
+                print("station loaded, ready to proceed")
             else:
                 print("waiting for channel to launch")
                 time.sleep(4)
@@ -656,10 +660,9 @@ def launch_pluto(url):
             time.sleep(1)
         send_request(device_url, select)  # Select On Demand
         time.sleep(1)
-        send_request(device_url, down)  # Navigate to continue watching
-        time.sleep(1)
-        send_request(device_url, down)  # Navigate to my list
-        time.sleep(1)
+        for i in range(2):
+            send_request(device_url, down)  # Navigate to continue watching
+            time.sleep(1)
         for i in range(3):
             send_request(device_url, select)  # Select show from my list
             time.sleep(1)
@@ -930,6 +933,7 @@ def interact_with_tv(url):
 
     print("interact_with_tv: Interacting with TV to avoid Netflix prompt")
     send_request(device_url, up)
+    time.sleep(1)
 
 
 # Exit current running app and power down the Roku TV or put the Roku device into sleep mode
