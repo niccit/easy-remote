@@ -1130,16 +1130,11 @@ while True:
         if now[3] == primary_tv_start_time[0] and now[4] >= primary_tv_start_time[1]:
             if primary_tv_channel is channel_1:
                 if primary_active_app != netflix_channel_id:
-                    second_tv = True
-                    starting_secondary_tv_status_msg()
                     launch_netflix(url_1)
                     set_default_display_msg()
             elif primary_tv_channel is channel_2:
                 if primary_active_app != pluto_channel_id:
-                    second_tv = True
-                    starting_secondary_tv_status_msg()
                     show_status = send_request(url_1, query_media)
-                    print("show status is", show_status)
                     if primary_active_app == netflix_channel_id:
                         if "pause" in show_status:
                             print("")
@@ -1148,13 +1143,9 @@ while True:
                             send_request(url_1, back)
                             time.sleep(1)
                     launch_pluto(url_1)
-                    set_default_display_msg()
             elif primary_tv_channel is channel_3:
                 if secondary_active_app != frndly_channel_id:
-                    second_tv = True
-                    starting_secondary_tv_status_msg()
                     launch_frndly(url_1)
-                    set_default_display_msg()
             else:
                 if primary_active_app != netflix_channel_id:
                     launch_netflix(url_1)
@@ -1175,6 +1166,14 @@ while True:
                 if secondary_active_app != pluto_channel_id:
                     second_tv = True
                     starting_secondary_tv_status_msg()
+                    show_status = send_request(url_1, query_media)
+                    if primary_active_app == netflix_channel_id:
+                        if "pause" in show_status:
+                            print("")
+                        else:
+                            print("show playing, need to wake it up")
+                            send_request(url_1, back)
+                            time.sleep(1)                    
                     launch_pluto(url_2)
                     set_default_display_msg()
             elif secondary_tv_channel is channel_3:
