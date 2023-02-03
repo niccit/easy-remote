@@ -446,17 +446,16 @@ def send_request(url, command):
                     loop = False
             except Exception as e:
                 print("send_request: Caught generic exception", e, "retrying in 2 seconds", "counter is", req_counter)
+                print("command was", command)
                 if req_counter > 0:
                     print("trying call again in 2 seconds", url + command)
                 req_counter += 1
                 if req_counter == 4:
                     print("made 5 attempts, giving up")
                     loop = False
-                else:
-                    print("closing socket for cleanup purposes")
-                    esp.socket_close(0)
-                time.sleep(2)
+
             busy = False
+            print("closing socket")
             esp.socket_close(0)
 
     return result
@@ -570,6 +569,23 @@ def launch_netflix(url):
         set_default_display_msg()
 
 
+def wake_up_netflix(url):
+    print("checking to see if I need to wake up netflix to proceed")
+    if url is url_1:
+        device_url = url_1
+    else:
+        device_url = url_2
+
+    show_status = send_request(device_url, query_media)
+    if primary_active_app == netflix_channel_id:
+        if "pause" in show_status:
+            print("")
+        else:
+            print("show playing, need to wake it up")
+            send_request(device_url, back)
+            time.sleep(1)
+
+
 # Because Netflix never leaves you in a known state
 # we need to exit the app every time we turn off the TV or change apps
 def exit_netflix(url):
@@ -581,6 +597,7 @@ def exit_netflix(url):
     channel_state_text = send_request(device_url, query_media)
     if channel_state_text is not False:
         if "stop" in channel_state_text or "pause" in channel_state_text:
+            wake_up_netflix(device_url)
             print("using return range 3")
             return_range = 3
         else:
@@ -684,75 +701,6 @@ def launch_pluto(url):
         time.sleep(2)
         set_default_display_msg()
 
-
-# def launch_pluto(url):
-#     global second_tv
-#
-#     if url:
-#         device_url = url
-#     else:
-#         device_url = url_1
-#
-#     if device_url is url_1:
-#         state = primary_device_state
-#         app = primary_active_app
-#     else:
-#         state = secondary_device_state
-#         app = secondary_active_app
-#
-#     if state is "active":
-#         if app not in [int(channel_id_1), int(channel_id_2), int(channel_id_3)]:
-#             print("need to power on device at", device_url)
-#             send_request(device_url, pwr_on)
-#
-#         # Check to see if Netflix is active, if so exit app before starting new show
-#         if app == netflix_channel_id:
-#             exit_netflix(url=device_url)
-#             time.sleep(1)
-#         # Check to see if Pluto is active, if so exit app before starting new show
-#         if app == pluto_channel_id:
-#             exit_pluto(url=device_url)
-#             time.sleep(1)
-#
-#         print("launching ", show_2, "on ", channel_2, " on device ", device_url)
-#
-#         # Set the display to indicate what we're watching
-#         if second_tv is True:
-#             second_tv = False
-#         else:
-#             set_watching_display(channel=channel_2)
-#
-#         channel_call = (launch + channel_id_2)
-#
-#         wait_for_start = True
-#
-#         send_request(device_url, channel_call)  # launch Pluto TV
-#         while wait_for_start is True:
-#             if "<is_live>true</is_live>" in send_request(url, query_media):
-#                 wait_for_start = False
-#                 print("station loaded, ready to proceed")
-#             else:
-#                 print("waiting for channel to launch")
-#                 time.sleep(4)
-#         send_request(device_url, left)  # Open left nav
-#         time.sleep(1)
-#         for i in range(2):
-#             send_request(device_url, down)  # Navigate to On Demand from menu
-#             time.sleep(1)
-#         send_request(device_url, select)  # Select On Demand
-#         time.sleep(1)
-#         for i in range(2):
-#             send_request(device_url, down)  # Navigate to continue watching
-#             time.sleep(1)
-#         for i in range(3):
-#             send_request(device_url, select)  # Select show from my list
-#             time.sleep(1)
-#
-#         time.sleep(2)
-#         set_active_app(device_url)
-#
-#         time.sleep(2)
-#         set_default_display_msg()
 
 # Similar to Netflix
 # We need to exit Pluto to ensure a known starting point
@@ -1134,14 +1082,7 @@ while True:
                     set_default_display_msg()
             elif primary_tv_channel is channel_2:
                 if primary_active_app != pluto_channel_id:
-                    show_status = send_request(url_1, query_media)
-                    if primary_active_app == netflix_channel_id:
-                        if "pause" in show_status:
-                            print("")
-                        else:
-                            print("show playing, need to wake it up")
-                            send_request(url_1, back)
-                            time.sleep(1)
+                    wake_up_netflix(url_1)
                     launch_pluto(url_1)
             elif primary_tv_channel is channel_3:
                 if secondary_active_app != frndly_channel_id:
@@ -1166,14 +1107,7 @@ while True:
                 if secondary_active_app != pluto_channel_id:
                     second_tv = True
                     starting_secondary_tv_status_msg()
-                    show_status = send_request(url_1, query_media)
-                    if primary_active_app == netflix_channel_id:
-                        if "pause" in show_status:
-                            print("")
-                        else:
-                            print("show playing, need to wake it up")
-                            send_request(url_1, back)
-                            time.sleep(1)                    
+                    wake_up_netflix(url_2)
                     launch_pluto(url_2)
                     set_default_display_msg()
             elif secondary_tv_channel is channel_3:
