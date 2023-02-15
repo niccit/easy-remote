@@ -407,37 +407,24 @@ def send_request(url, command):
     global busy
     result = None
     loop = True
-    req_counter = 0
-
-    if url is url_1:
-        app = primary_active_app
-    else:
-        app = secondary_active_app
 
     while loop is True:
         if busy is True:
             print("busy doing other work, will retry in 2 seconds")
         else:
             busy = True
-            if req_counter > 0:
-                print("on attempt", req_counter)
-                print("executing command", url, command)
             try:
-                if "query/active-app" in command:
+                if "active-app" in command:
+                    print("querying for active app")
                     response = requests.get(url + command)
                     result = response.text
                     response.close()
                     loop = False
-                elif "query/media-player" in command:
+                elif "media-player" in command:
+                    print("querying media player")
                     response = requests.get(url + command)
                     result = response.text
                     response.close()
-                    if req_counter > 0 and app is channel_2:
-                        print("on a retry - need to bring up guide button")
-                        esp.socket_close(0)
-                        time.sleep(1)
-                        response = requests.post(url + command)
-                        response.close()
                     loop = False
                 else:
                     response = requests.post(url + command)
@@ -445,17 +432,10 @@ def send_request(url, command):
                     response.close()
                     loop = False
             except Exception as e:
-                print("send_request: Caught generic exception", e, "retrying in 2 seconds", "counter is", req_counter)
-                print("command was", command)
-                if req_counter > 0:
-                    print("trying call again in 2 seconds", url + command)
-                req_counter += 1
-                if req_counter == 4:
-                    print("made 5 attempts, giving up")
-                    loop = False
+                print("send_request: Caught generic exception", e)
+                pass
 
             busy = False
-            print("closing socket")
             esp.socket_close(0)
 
     return result
@@ -700,6 +680,32 @@ def launch_pluto(url):
 
         time.sleep(2)
         set_default_display_msg()
+
+
+#
+# Pluto can be a bit contrary at times
+# Check that it actually loaded the program we want
+#
+
+def confirm_pluto_show_loaded(url):
+    show_launched = False
+
+    if url:
+        device_url = url
+    else:
+        device_url = url_1
+
+    print("confirming chosen PlutoTV show has launched")
+    while show_launched is False:
+
+        if "true" in send_request(device_url, query_media):
+            print("Didn't launch chosen show, trying again")
+            launch_pluto(device_url)
+        else:
+            print("Chosen show successfully launched")
+            show_launched = True
+
+        time.sleep(2)
 
 
 # Similar to Netflix
@@ -1020,6 +1026,7 @@ while True:
 
     if neokey[1]:
         launch_pluto(url_1)
+        confirm_pluto_show_loaded(url_1)
 
     if neokey[2]:
         launch_frndly(url_1)
@@ -1084,6 +1091,7 @@ while True:
                 if primary_active_app != pluto_channel_id:
                     wake_up_netflix(url_1)
                     launch_pluto(url_1)
+                    confirm_pluto_show_loaded(url_1)
             elif primary_tv_channel is channel_3:
                 if secondary_active_app != frndly_channel_id:
                     launch_frndly(url_1)
@@ -1109,6 +1117,7 @@ while True:
                     starting_secondary_tv_status_msg()
                     wake_up_netflix(url_2)
                     launch_pluto(url_2)
+                    confirm_pluto_show_loaded(url_2)
                     set_default_display_msg()
             elif secondary_tv_channel is channel_3:
                 if secondary_active_app != frndly_channel_id:
