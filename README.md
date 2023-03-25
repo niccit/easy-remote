@@ -29,7 +29,7 @@ You will notice that there are four launch_service methods, although only three 
 
 You will need to create your own secrets file based on the example file included in the project. Documentation for building a secrets file can be found <a href="https://learn.adafruit.com/electronic-history-of-the-day-with-pyportal/code-walkthrough-secrets-py" target="_blank">here.</a>
 
-To better understand how to interact with the Roku devices, please visit the <a href="https://developer.roku.com/en-ca/docs/developer-program/debugging/external-control-api.md" target="_blank">Roku Developers : External Control Protocol (ECP) documentation.</a>
+To better understand how to interact with the Roku devices, please visit the <a href="`https://developer.roku.com/en-ca/docs/developer-program/debugging/external-control-api.md`" target="_blank">Roku Developers : External Control Protocol (ECP) documentation.</a>
 
 Adafruit libraries this project needs:
 - adafruit_bitmap_font

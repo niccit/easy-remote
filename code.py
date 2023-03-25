@@ -13,6 +13,7 @@ import busio
 import digitalio
 import re
 import displayio
+import microcontroller
 import adafruit_esp32spi.adafruit_esp32spi_socket as socket
 from adafruit_esp32spi import adafruit_esp32spi
 from adafruit_bitmap_font import bitmap_font
@@ -407,36 +408,53 @@ def send_request(url, command):
     global busy
     result = None
     loop = True
+    counter = 0
+
+    if url is url_1:
+        app = primary_active_app
+    else:
+        app = secondary_active_app
 
     while loop is True:
         if busy is True:
             print("busy doing other work, will retry in 2 seconds")
         else:
-            busy = True
-            try:
-                if "active-app" in command:
-                    print("querying for active app")
-                    response = requests.get(url + command)
-                    result = response.text
-                    response.close()
-                    loop = False
-                elif "media-player" in command:
-                    print("querying media player")
-                    response = requests.get(url + command)
-                    result = response.text
-                    response.close()
-                    loop = False
-                else:
-                    response = requests.post(url + command)
-                    result = "true"
-                    response.close()
-                    loop = False
-            except Exception as e:
-                print("send_request: Caught generic exception", e)
-                pass
+            while counter <= 2:
+                busy = True
+                if counter > 0:
+                    print("trying query again, attempt", counter)
+                try:
+                    if "active-app" in command:
+                        print("querying for active app")
+                        response = requests.get(url + command)
+                        result = response.text
+                        response.close()
+                        counter = 3
+                        loop = False
+                    elif "media-player" in command:
+                        print("querying media player")
+                        response = requests.get(url + command)
+                        result = response.text
+                        response.close()
+                        counter = 3
+                        loop = False
+                    else:
+                        response = requests.post(url + command)
+                        result = "true"
+                        response.close()
+                        counter = 3
+                        loop = False
+                except Exception as e:
+                    print("send_request: Caught generic exception", e)
+                    if counter > 2:
+                        print("unable to complete request")
+                        pass
+                    else:
+                        counter += 1
+                    time.sleep(2)
 
-            busy = False
-            esp.socket_close(0)
+                busy = False
+                esp.socket_close(0)
 
     return result
 
@@ -531,14 +549,12 @@ def launch_netflix(url):
         time.sleep(2)
         send_request(device_url, left)  # open the left nav menu
         time.sleep(1)
-        send_request(device_url, up)  # navigate to search
-        time.sleep(1)
+        for nav in range(5):  # Navigate to My List
+            send_request(device_url, down)
+            time.sleep(1)
         send_request(device_url, select)  # enter search
         time.sleep(1)
-        # Depending on what type of Roku you're using, you might need this extra navigation
-        #    send_request(device_url, left)  # Move from Top Searches to the search box
-        #    time.sleep(1)
-        search_program(device_url, show_1, channel_1)
+        send_request(device_url, select)  # Star the selected show
         time.sleep(1)
         send_request(device_url, select)  # Star the selected show
 
@@ -584,13 +600,16 @@ def exit_netflix(url):
             print("using return range 4")
             return_range = 4
 
+        return_range = 3
+
         print("exiting ", channel_1)
         for x in range(return_range):  # Get back to left nav
             send_request(device_url, back)
             time.sleep(1)
-        send_request(device_url, down)  # Navigate to home, our start point
-        time.sleep(1)
-        send_request(device_url, select)  # Select it to save it
+        for nav in range(5):
+            send_request(device_url, up)
+            time.sleep(1)
+        send_request(device_url, select)  # Return to home screent
         time.sleep(1)
         send_request(device_url, left)  # Return to left nav
         time.sleep(1)
@@ -660,21 +679,19 @@ def launch_pluto(url):
         print("start launch procedure")
         send_request(device_url, left)  # Open left nav
         time.sleep(1)
-        for i in range(3):
-            send_request(device_url, down)  # Navigate to On Search from menu
+        for i in range(2):
+            send_request(device_url, down)  # Navigate to On Demand
             time.sleep(1)
-        send_request(device_url, select)  # Select Search
+        send_request(device_url, select)  # Select On Demand
         time.sleep(1)
-        search_program(device_url, show_2, channel_2)
-        time.sleep(1)
-        for i in range(6):
-            send_request(device_url, right)
+        for i in range(2):
+            send_request(device_url, down)  # Navigate to On Demand
             time.sleep(1)
-        print("this is a test of the do I have the right code system")
+        send_request(device_url, right)
+        time.sleep(1)
         send_request(device_url, select)
         time.sleep(1)
         send_request(device_url, select)
-
         time.sleep(2)
         set_active_app(device_url)
 
@@ -710,7 +727,7 @@ def confirm_pluto_show_loaded(url):
 
 # Similar to Netflix
 # We need to exit Pluto to ensure a known starting point
-def exit_pluto(url):
+def exit_pluto(url, ):
     if url:
         device_url = url
     else:
@@ -889,6 +906,7 @@ def get_active_app(url):
         print("get_active_app: Attempting to get active channel for device", device_url)
         channel_text = send_request(device_url, active_app)
         if channel_text is not None:
+            print("channel text is", channel_text)
             regex = re.compile("[\r\n]")
             parsed_response = regex.split(channel_text)
             if string_to_check not in parsed_response[2]:
@@ -1065,6 +1083,7 @@ while True:
         # Set the default menu of what to watch
         set_default_display_msg()
         print("Ready to begin handling devices")
+
         last_check = time.monotonic()
 
     # If either TV is on and Netflix is playing
@@ -1072,6 +1091,14 @@ while True:
     # Also handle turning on/off each device daily
     if interact_check is None or time.monotonic() > interact_check + interact_delay:
         now = get_time(False)
+
+        if default_display is False:
+            set_default_display_msg()
+
+        # Hard reboot - just to flush out any bad things
+        if now[3] == 1 and now[4] >= 30:
+            print("resetting device")
+            microcontroller.reset()
 
         if primary_device_state is "active":
             if primary_active_app == netflix_channel_id:
@@ -1132,45 +1159,10 @@ while True:
                     launch_netflix(url_2)
                     set_default_display_msg()
 
+        # Turn off the secondary TV each night
         if now[3] == secondary_tv_end_time[0] and now[4] >= secondary_tv_end_time[1]:
             power_off(url_2)
 
         interact_check = time.monotonic()
-
-    # A small test aid. This will set the pin value at random and launch the corresponding show
-    # Unfortunately I was unable to force a key press
-    # So this was the next best thing
-    if test_mode is True and time.monotonic() > last_test_check + test_delay:
-        print("TEST: Running test cycle")
-        counter = 0
-        while counter <= 4:
-            print("TEST: on iteration", counter)
-            neokey_key = random.choice([0, 1, 2, 3])
-            if neokey_key == 0:
-                print("TEST: key", neokey_key)
-                neokey.digital_write(neokey_key, launch_netflix(url_1))
-                time.sleep(2)
-                neokey.digital_write(neokey_key, None)
-            elif neokey_key == 1:
-                print("TEST: key", neokey_key)
-                neokey.digital_write(neokey_key, launch_paramount(url_1))
-                time.sleep(2)
-                neokey.digital_write(neokey_key, None)
-            elif neokey_key == 2:
-                print("TEST: key", neokey_key)
-                neokey.digital_write(neokey_key, launch_frndly(url_1))
-                time.sleep(2)
-                neokey.digital_write(neokey_key, None)
-            elif neokey_key == 3:
-                print("TEST: key", neokey_key)
-                neokey.digital_write(neokey_key, power_off(url_1))
-                time.sleep(2)
-                neokey.digital_write(neokey_key, None)
-
-            counter += 1
-            if counter < 3:
-                time.sleep(120)
-
-        last_test_check = time.monotonic()
 
     time.sleep(0.05)
