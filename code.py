@@ -2,10 +2,7 @@
 # This is a very simple remote, designed for individuals with difficulty navigating
 # all the different streaming applications
 # It was designed to help a senior have less frustration while trying to watch television
-# import adafruit_requests as requests
-# import adafruit_esp32spi.adafruit_esp32spi_socket as socket
 
-import random
 import time
 import adafruit_requests as requests
 import board
@@ -16,18 +13,13 @@ import displayio
 import microcontroller
 import adafruit_esp32spi.adafruit_esp32spi_socket as socket
 from adafruit_esp32spi import adafruit_esp32spi
-from adafruit_bitmap_font import bitmap_font
-from adafruit_matrixportal.matrix import Matrix
+from adafruit_matrixportal.matrixportal import MatrixPortal
 from adafruit_neokey.neokey1x4 import NeoKey1x4
-from adafruit_display_text.label import Label
 from adafruit_matrixportal.network import Network
 
-DISPLAY_WIDTH = 64
-DISPLAY_HEIGHT = 32
-DISPLAY_BITPLANES = 6
-FONT = bitmap_font.load_font("/fonts/RobotoMono-Regular-8.pcf")
+FONT = "/fonts/RedHatMono-Medium-8.bdf"
 
-# Get Wifi information from secrets.py file
+# Get WiFi information from secrets.py file
 try:
     from secrets import secrets
 except ImportError:
@@ -70,9 +62,8 @@ secondary_tv_end_time = data["secondary_tv_end_time"]
 secondary_tv_channel = data["secondary_tv_channel"]
 update_delay = data["update_delay"]
 interact_delay = data["interact_delay"]
-# For testing only!
-test_mode = data["test_mode"]
-test_delay = data["test_delay"]
+primary_reboot = True
+secondary_reboot = True
 
 # Setting necessary defaults
 second_tv = False
@@ -85,11 +76,11 @@ primary_device_state = None
 secondary_device_state = None
 primary_active_app = None
 secondary_active_app = None
-netflix_channel_id = int(channel_ids[0])
-pluto_channel_id = int(channel_ids[1])
-frndly_channel_id = int(channel_ids[2])
-# For testing only!
-last_test_check = time.monotonic()
+primary_channel_name = None
+secondary_channel_name = None
+primary_show_name = None
+secondary_show_name = None
+
 
 # URLs
 url_1 = ("http://" + hosts[0] + ":" + port + "/")
@@ -113,6 +104,10 @@ channel_3 = current_channels[2]
 channel_id_1 = channel_ids[0]
 channel_id_2 = channel_ids[1]
 channel_id_3 = channel_ids[2]
+
+first_channel_id = int(channel_id_1)
+second_channel_id = int(channel_id_2)
+third_channel_id = int(channel_id_3)
 
 # --- Roku API Calls ---
 # Home
@@ -147,30 +142,34 @@ query_media = "query/media-player"
 dev_check = "query/chanperf"
 
 # --- Display ---
-matrix = Matrix()
-display = matrix.display
+# matrix = Matrix()
+# display = matrix.display
 
-group = displayio.Group()
-bitmap = displayio.Bitmap(DISPLAY_WIDTH, DISPLAY_HEIGHT, DISPLAY_BITPLANES)
-color = displayio.Palette(6)
+matrix = MatrixPortal(esp=esp)
+
+color = displayio.Palette(7)
 color[0] = 0x000000  # black background
-color[1] = 0XFF0000  # red = Netflix
-color[2] = 0x00FFFF  # blue = Paramount+
-color[3] = 0x008000  # green = Frndly
+color[1] = 0XFF0000  # red = Show 1
+color[2] = 0x00FFFF  # blue = Show 2
+color[3] = 0x008000  # green = Show 3
 color[4] = 0xFFFFFF  # white =  default color
-tile_grid = displayio.TileGrid(bitmap, pixel_shader=color)
-group.append(tile_grid)
-display.show(group)
+color[5] = 0xFF4500  # orange/red
+color[6] = 0x8B008B  # magenta
 
 # --- Set up the keyboard ---
 i2c_bus = board.STEMMA_I2C()
 neokey = NeoKey1x4(i2c_bus, addr=0x30)
+neokey_2 = NeoKey1x4(i2c_bus, addr=0x31)
 
 # Set colors for the keyboard
 neokey.pixels[0] = color[1]
 neokey.pixels[1] = color[2]
 neokey.pixels[2] = color[3]
 neokey.pixels[3] = color[4]
+
+# Set colors for second keyboard
+neokey_2.pixels[1] = color[5]
+neokey_2.pixels[2] = color[6]
 
 
 # --- Helper Methods for the Display ---
@@ -194,12 +193,13 @@ def get_time(sync):
 
 def synchronize_clock():
     tick_tock = 0
+
     while tick_tock <= 2:
         try:
             network.get_local_time()  # Synchronize Board's clock to internet
             tick_tock = 3
         except RuntimeError as r:
-            print("synchronize_clock: unable to synchronize board clock to internet. Error:", r, "attempt", counter,
+            print("synchronize_clock: unable to synchronize board clock to internet. Error:", r, "attempt", tick_tock,
                   "of 3, will retry in 2 seconds")
             continue
 
@@ -212,64 +212,59 @@ def synchronize_clock():
 def set_loading_display_msg():
     global display_array, default_display
 
-    load1 = Label(
-        font=FONT,
-        color=color[4],
-        text="{0}".format("Loading"))
-    bbx, bby, bbwidth, bbh = load1.bounding_box
-    load1.x = round(display.width / 2 - bbwidth / 2)
-    load1.y = 4
+    matrix.remove_all_text(True)
 
-    load2 = Label(
-        font=FONT,
-        color=color[4],
-        text="{0}".format("Please Wait"))
-    bbx2, bby2, bbwidth2, bbh2 = load2.bounding_box
-    load2.x = round(display.width / 2 - bbwidth2 / 2)
-    load2.y = 18
+    matrix.add_text(
+        text_font=FONT,
+        text_position=(
+            (matrix.graphics.display.width // 12) + 10,
+            (matrix.graphics.display.height // 2) - 12,
+        ),
+        text_color=color[4],
+    )
 
-    clear_display()
-    display_array = ["load1", "load2"]
+    matrix.set_text_color(color[4], 0)
+    matrix.set_text("LOADING", 0)
 
-    group.append(load1)
-    group.append(load2)
+    matrix.add_text(
+        text_font=FONT,
+        text_position=(
+            (matrix.graphics.display.width // 12),
+            (matrix.graphics.display.height // 2 + 2),
+        ),
+        text_color=color[4],
+    )
+    matrix.set_text_color(color[4], 1)
+    matrix.set_text("PLEASE WAIT", 1)
 
     default_display = False
 
 
-def starting_secondary_tv_status_msg():
+def set_secondary_tv_start_msg():
     global display_array, default_display
 
-    up1 = Label(
-        font=FONT,
-        color=color[4],
-        text="{0}".format("Upstairs TV"))
-    bbx, bby, bbwidth, bbh = up1.bounding_box
-    up1.x = round(display.width / 2 - bbwidth / 2)
-    up1.y = 4
+    matrix.remove_all_text(True)
 
-    up2 = Label(
-        font=FONT,
-        color=color[4],
-        text="{0}".format("Starting"))
-    bbx2, bby2, bbwidth2, bbh2 = up2.bounding_box
-    up2.x = round(display.width / 2 - bbwidth2 / 2)
-    up2.y = 11
+    matrix.add_text(
+        text_font=FONT,
+        text_position=(
+            (matrix.graphics.display.width // 12 + 4),
+            (matrix.graphics.display.height // 2) - 12,
+        ),
+        text_color=color[4],
+    )
+    matrix.set_text_color(color[4], 0)
+    matrix.set_text("BEDROOM TV", 0)
 
-    up3 = Label(
-        font=FONT,
-        color=color[4],
-        text="{0}".format("Please Wait"))
-    bbx2, bby2, bbwidth2, bbh2 = up3.bounding_box
-    up3.x = round(display.width / 2 - bbwidth2 / 2)
-    up3.y = 18
-
-    clear_display()
-    display_array = ["up2", "up2", "up3"]
-
-    group.append(up1)
-    group.append(up2)
-    group.append(up3)
+    matrix.add_text(
+        text_font=FONT,
+        text_position=(
+            (matrix.graphics.display.width // 12 + 8),
+            (matrix.graphics.display.height // 2) + 2,
+        ),
+    )
+    matrix.set_text_color(color[4], 1)
+    matrix.set_text("STARTING", 1)
 
     default_display = False
 
@@ -280,113 +275,225 @@ def set_default_display_msg():
     global display_array, default_display
 
     if default_display is False:
-        hello1 = Label(
-            font=FONT,
-            color=color[4],
-            text="{0}".format("What to Watch"))
-        bbx, bby, bbwidth, bbh = hello1.bounding_box
-        hello1.x = round(display.width / 2 - bbwidth / 2)
-        hello1.y = 4
+        matrix.remove_all_text(True)
+        matrix.add_text(
+            text_font=FONT,
+            text_position=(
+                (matrix.graphics.display.width // 12) + 4,
+                (matrix.graphics.display.height // 2) - 12,
+            ),
+            text_color=color[1],
+        )
+        matrix.set_text_color(color[1], 0)
+        matrix.set_text(show_1, 0)
 
-        hello2 = Label(
-            font=FONT,
-            color=color[1],
-            text="{0}".format(show_1))
-        bbx2, bby2, bbwidth2, bbh2 = hello2.bounding_box
-        hello2.x = round(display.width / 2 - bbwidth2 / 2)
-        hello2.y = 11
+        matrix.add_text(
+            text_font=FONT,
+            text_position=(
+                (matrix.graphics.display.width // 12 - 4),
+                (matrix.graphics.display.height // 2 - 3),
+            ),
+            text_color=color[2],
+        )
+        matrix.set_text_color(color[2], 1)
+        matrix.set_text(show_2, 1)
 
-        hello3 = Label(
-            font=FONT,
-            color=color[2],
-            text="{0}".format(show_2))
-        bbx3, bby3, bbwidth3, bbh3 = hello3.bounding_box
-        hello3.x = round(display.width / 2 - bbwidth3 / 2)
-        hello3.y = 18
-
-        hello4 = Label(
-            font=FONT,
-            color=color[3],
-            text="{0}".format(show_3))
-        bbx4, bby4, bbwidth4, bbh4 = hello4.bounding_box
-        hello4.x = round(display.width / 2 - bbwidth4 / 2)
-        hello4.y = 25
-
-        clear_display()
-        display_array = ["hello1", "hello2", "hello3", "hello4"]
-
-        group.append(hello1)
-        group.append(hello2)
-        group.append(hello3)
-        group.append(hello4)
+        matrix.add_text(
+            text_font=FONT,
+            text_position=(
+                (matrix.graphics.display.width // 12 + 6),
+                (matrix.graphics.display.height // 2 + 3),
+            ),
+            text_color=color[3],
+        )
+        matrix.set_text_color(color[3], 2)
+        matrix.set_text(show_3, 2)
 
         default_display = True
 
 
 # Set the display while launching a show
 # The display will read "Now Playing \r <selected show>"
-def set_watching_display(channel):
-    global display_array, default_display
+def set_watching_display(channel, show):
+    global default_display
 
-    # Default show color
-    show_color = color[4]
-    # Default show text
-    show_text = "{0}".format("Default Show Text Here")
+    show_color = color[4]  # default show color
 
-    if channel:
-        channel = channel
+    matrix.remove_all_text(True)
 
-    # Set the second line of the display based on the channel chosen
+    matrix.add_text(
+        text_font=FONT,
+        text_position=(
+            (matrix.graphics.display.width // 12),
+            (matrix.graphics.display.height // 2) - 12,
+        ),
+        text_color=color[4],
+    )
+    matrix.set_text_color(color[4], 0)
+    matrix.set_text("NOW PLAYING", 0)
+
     if channel is channel_1:
-        show_text = "{0}".format(show_1)
-        show_color = color[1]
+        matrix.add_text(
+            text_font=FONT,
+            text_position=(
+                (matrix.graphics.display.width // 12) + 2,
+                (matrix.graphics.display.height // 2 - 2),
+            ),
+            text_color=show_color,
+        )
+        matrix.set_text_color(color[1], 1)
+        matrix.set_text(show, 1)
     elif channel is channel_2:
-        show_text = "{0}".format(show_2)
-        show_color = color[2]
+        matrix.add_text(
+            text_font=FONT,
+            text_position=(
+                (matrix.graphics.display.width // 12 - 4),
+                (matrix.graphics.display.height // 2) + 2,
+            ),
+            text_color=show_color,
+        )
+        matrix.set_text_color(color[2], 1)
+        matrix.set_text(show, 1)
     elif channel is channel_3:
-        show_text = "{0}".format(show_3)
-        show_color = color[3]
-
-    line1 = Label(
-        font=FONT,
-        color=color[4],
-        text="{0}".format("Now Playing"))
-    bbx1, bby1, bbwidth1, bbh1 = line1.bounding_box
-    line1.x = round(display.width / 2 - bbwidth1 / 2)
-    line1.y = 8
-
-    line2 = Label(
-        font=FONT,
-        color=show_color,
-        text=show_text)
-    bbx2, bby2, bbwidth2, bbh2 = line2.bounding_box
-    line2.x = round(display.width / 2 - bbwidth2 / 2)
-    line2.y = 24
-
-    clear_display()
-    display_array = ["line1", "line2"]
-
-    group.append(line1)
-    group.append(line2)
+        matrix.add_text(
+            text_font=FONT,
+            text_position=(
+                (matrix.graphics.display.width // 12 + 6),
+                (matrix.graphics.display.height // 2) + 2,
+            ),
+            text_color=show_color,
+        )
+        matrix.set_text_color(color[3], 1)
+        matrix.set_text(show, 1)
 
     default_display = False
 
 
-# Clear the display based
-def clear_display():
-    global display_array
+def set_volume_change_msg(direction):
+    global default_display
 
-    for i in range(len(display_array)):
-        group.pop()
+    matrix.remove_all_text(True)
+
+    if direction == "up":
+        matrix.add_text(
+            text_font=FONT,
+            text_position=(
+                (matrix.graphics.display.width // 12 + 4),
+                (matrix.graphics.display.height // 2),
+            ),
+            text_color=color[5],
+        )
+
+        matrix.set_text("SOUND UP", 0)
+    else:
+        matrix.add_text(
+            text_font=FONT,
+            text_position=(
+                (matrix.graphics.display.width // 12),
+                (matrix.graphics.display.height // 2),
+            ),
+            text_color=color[6],
+        )
+        matrix.set_text("SOUND DOWN", 0)
+
+    default_display = False
+    time.sleep(1)
+
+
+def set_exit_show_msg(show):
+    global default_display
+
+    print("show is", show)
+
+    if show is show_1:
+        show_color = color[1]
+    elif show is show_2:
+        show_color = color[2]
+    elif show is show_3:
+        show_color = color[3]
+    else:
+        show_color = color[4]
+
+    matrix.remove_all_text(True)
+
+    matrix.add_text(
+        text_font=FONT,
+        text_position=(
+            (matrix.graphics.display.width // 12) + 10,
+            (matrix.graphics.display.height // 2) - 12,
+        ),
+        text_color=color[4],
+    )
+    matrix.set_text("EXITING", 0)
+
+    if show is show_1:
+        matrix.add_text(
+            text_font=FONT,
+            text_position=(
+                (matrix.graphics.display.width // 12) + 2,
+                (matrix.graphics.display.height // 2 - 2),
+            ),
+            text_color=show_color,
+        )
+        matrix.set_text(show, 1)
+    elif show is show_2:
+        matrix.add_text(
+            text_font=FONT,
+            text_position=(
+                (matrix.graphics.display.width // 12 - 4),
+                (matrix.graphics.display.height // 2) - 2,
+            ),
+            text_color=show_color,
+        )
+        matrix.set_text(show, 1)
+    elif show is show_3:
+        matrix.add_text(
+            text_font=FONT,
+            text_position=(
+                (matrix.graphics.display.width // 12 + 6),
+                (matrix.graphics.display.height // 2) + 2,
+            ),
+            text_color=show_color,
+        )
+        matrix.set_text(show, 1)
+
+    default_display = False
+
+
+def set_power_off_msg():
+    global default_display
+
+    matrix.remove_all_text(True)
+
+    matrix.add_text(
+        text_font=FONT,
+        text_position=(
+            (matrix.graphics.display.width // 12) + 10,
+            (matrix.graphics.display.height // 2) - 12,
+        ),
+        text_color=color[4],
+    )
+    matrix.set_text("POWER OFF", 0)
+
+    matrix.add_text(
+        text_font=FONT,
+        text_position=(
+            (matrix.graphics.display.width // 12) + 10,
+            (matrix.graphics.display.height // 2) + 2,
+        ),
+        text_color=color[4],
+    )
+    matrix.set_text("GOODBYE", 1)
+
+    default_display = False
+
 
 
 # --- Helper methods for other tasks not related to the Roku or Display ---
 
+
 # Convert a show name to an array for searching
 def get_show_search_array(show):
-    if show is None:
-        print("get_show_search_array: No show to parse, please specify a show name")
-
     show_to_split = show.split()
     show_to_split_length = len(show_to_split)
     show_array = []
@@ -401,19 +508,57 @@ def get_show_search_array(show):
     return show_array
 
 
+def get_channel_id(channel):
+    if channel is channel_1:
+        channel_id = channel_id_1
+    elif channel is channel_2:
+        channel_id = channel_id_2
+    elif channel is channel_3:
+        channel_id = channel_id_3
+    else:
+        channel_id = None
+
+    return channel_id
+
+
+def set_channel_and_show(url, app):
+    global primary_channel_name, secondary_channel_name, primary_show_name, secondary_show_name
+
+    print("app is", app)
+
+    for i in range(len(current_channels)):
+        if app == first_channel_id:
+            if url is url_1:
+                primary_channel_name = channel_1
+                primary_show_name = show_1
+            else:
+                secondary_channel_name = channel_1
+                secondary_show_name = show_1
+        elif app == second_channel_id:
+            if url is url_1:
+                primary_channel_name = channel_2
+                primary_show_name = show_2
+            else:
+                secondary_channel_name = channel_2
+                secondary_show_name = show_2
+        elif app == third_channel_id:
+            if url is url_1:
+                primary_channel_name = channel_3
+                primary_show_name = show_3
+            else:
+                secondary_channel_name = channel_3
+                secondary_show_name = show_3
+
+
 #  --- Helper methods for interacting with Roku ---
 # After a while an OutOfRetries
 # Have each method call this prior to making the actual call to the device
 def send_request(url, command):
     global busy
+
     result = None
     loop = True
     counter = 0
-
-    if url is url_1:
-        app = primary_active_app
-    else:
-        app = secondary_active_app
 
     while loop is True:
         if busy is True:
@@ -422,7 +567,7 @@ def send_request(url, command):
             while counter <= 2:
                 busy = True
                 if counter > 0:
-                    print("trying query again, attempt", counter)
+                    print("trying query again, attempt", counter, "for command", command)
                 try:
                     if "active-app" in command:
                         print("querying for active app")
@@ -445,7 +590,7 @@ def send_request(url, command):
                         counter = 3
                         loop = False
                 except Exception as e:
-                    print("send_request: Caught generic exception", e)
+                    print("send_request: Caught generic exception", e, "for command", command)
                     if counter > 2:
                         print("unable to complete request")
                         pass
@@ -461,17 +606,11 @@ def send_request(url, command):
 
 # Use in-channel search to locate show to watch
 # Using search as a more reliable way to find what to watch
-def search_program(url, show, channel):
-    if not show:
-        print("search_program: Please provide a show to use in search")
-
+def search_program(url, channel, show):
     if url:
         device_url = url
     else:
         device_url = url_1
-
-    if channel:
-        channel = channel
 
     # If using Netflix, the search will remain on the last letter
     # of the searched show, so the amount we need to navigate to select
@@ -526,22 +665,33 @@ def launch_netflix(url):
             send_request(device_url, pwr_on)
 
         # Check and see if Netflix is active, if so exit the app before starting new show
-        if app == netflix_channel_id:
+        if app == 12:
             exit_netflix(device_url)
             time.sleep(1)
         # Check to see if Pluto is active, if so exit the app before starting new show
-        if app == pluto_channel_id:
+        if app == 74519:
             exit_pluto(device_url)
             time.sleep(1)
 
-        print("launching", show_1, "on", channel_1, "on device", device_url)
+        set_channel_and_show(device_url, 12)
+
+        if device_url is url_1:
+            channel = primary_channel_name
+            show = primary_show_name
+        else:
+            channel = secondary_channel_name
+            show = secondary_show_name
+
+        channel_id = get_channel_id(channel)
+
+        print("launching", show, "on", channel, "on device", device_url)
 
         if second_tv is True:
             second_tv = False
         else:
-            set_watching_display(channel_1)
+            set_watching_display(channel, show)
 
-        channel_call = (launch + channel_id_1)
+        channel_call = (launch + channel_id)
 
         send_request(device_url, channel_call)  # launch Netflix
         time.sleep(15)
@@ -573,7 +723,7 @@ def wake_up_netflix(url):
         device_url = url_2
 
     show_status = send_request(device_url, query_media)
-    if primary_active_app == netflix_channel_id:
+    if primary_active_app == 12:
         if "pause" in show_status:
             print("")
         else:
@@ -590,37 +740,37 @@ def exit_netflix(url):
     else:
         device_url = url_1
 
-    channel_state_text = send_request(device_url, query_media)
-    if channel_state_text is not False:
-        if "stop" in channel_state_text or "pause" in channel_state_text:
-            wake_up_netflix(device_url)
-            print("using return range 3")
-            return_range = 3
-        else:
-            print("using return range 4")
-            return_range = 4
+    if primary_show_name is None and secondary_show_name is None:
+        set_channel_and_show(device_url, 12)
 
-        return_range = 3
-
-        print("exiting ", channel_1)
-        for x in range(return_range):  # Get back to left nav
-            send_request(device_url, back)
-            time.sleep(1)
-        for nav in range(5):
-            send_request(device_url, up)
-            time.sleep(1)
-        send_request(device_url, select)  # Return to home screent
-        time.sleep(1)
-        send_request(device_url, left)  # Return to left nav
-        time.sleep(1)
-        for i in range(4):  # Move up to the profile
-            send_request(device_url, up)
-            time.sleep(1)
-        send_request(device_url, select)  # Select it to land on profiles page
-        time.sleep(1)
-        send_request(device_url, home)
+    if device_url is url_1:
+        channel = primary_channel_name
+        show = primary_show_name
     else:
-        print("could not get channel state, exiting")
+        channel = secondary_channel_name
+        show = secondary_show_name
+
+    return_range = 3
+
+    set_exit_show_msg(show)
+
+    print("exiting ", channel)
+    for x in range(return_range):  # Get back to left nav
+        send_request(device_url, back)
+        time.sleep(1)
+    for nav in range(5):
+        send_request(device_url, up)
+        time.sleep(1)
+    send_request(device_url, select)  # Return to home screent
+    time.sleep(1)
+    send_request(device_url, left)  # Return to left nav
+    time.sleep(1)
+    for i in range(4):  # Move up to the profile
+        send_request(device_url, up)
+        time.sleep(1)
+    send_request(device_url, select)  # Select it to land on profiles page
+    time.sleep(1)
+    send_request(device_url, home)
 
 
 # Launch Pluto TV
@@ -648,28 +798,42 @@ def launch_pluto(url):
             send_request(device_url, pwr_on)
 
         # Check to see if Netflix is active, if so exit app before starting new show
-        if app == netflix_channel_id:
-            exit_netflix(url=device_url)
+        if app == 12:
+            exit_netflix(device_url)
             time.sleep(1)
         # Check to see if Pluto is active, if so exit app before starting new show
-        if app == pluto_channel_id:
-            exit_pluto(url=device_url)
+        if app == 74519:
+            exit_pluto(device_url)
             time.sleep(1)
 
-        print("launching ", show_2, "on ", channel_2, " on device ", device_url)
+        set_channel_and_show(device_url, 74519)
+
+        if device_url is url_1:
+            channel = primary_channel_name
+            show = primary_show_name
+        else:
+            channel = secondary_channel_name
+            show = secondary_show_name
+
+        channel_id = get_channel_id(channel)
+
+        print("launching ", show, "on ", channel, " on device ", device_url)
 
         # Set the display to indicate what we're watching
         if second_tv is True:
             second_tv = False
         else:
-            set_watching_display(channel=channel_2)
+            set_watching_display(channel, show)
 
-        channel_call = (launch + channel_id_2)
+        channel_call = (launch + channel_id)
 
         wait_for_start = True
 
         send_request(device_url, channel_call)  # launch Pluto TV
         while wait_for_start is True:
+            # Use this line if watching on a Roku TV
+            # if "<is_live blocked=\"false\">true</is_live>" in send_request(url, query_media):
+            # Use this line if watching on a Roku Device (Premier, Streambar)
             if "<is_live>true</is_live>" in send_request(url, query_media):
                 wait_for_start = False
                 print("station loaded, ready to proceed")
@@ -686,7 +850,7 @@ def launch_pluto(url):
         time.sleep(1)
         for i in range(2):
             send_request(device_url, down)  # Navigate to On Demand
-            time.sleep(1)
+            time.sleep(2)
         send_request(device_url, right)
         time.sleep(1)
         send_request(device_url, select)
@@ -694,6 +858,9 @@ def launch_pluto(url):
         send_request(device_url, select)
         time.sleep(2)
         set_active_app(device_url)
+
+        time.sleep(1)
+        confirm_pluto_show_loaded(device_url)
 
         time.sleep(2)
         set_default_display_msg()
@@ -715,9 +882,12 @@ def confirm_pluto_show_loaded(url):
     print("confirming chosen PlutoTV show has launched")
     while show_launched is False:
 
-        if "true" in send_request(device_url, query_media):
+        # Use this if watching on a Roku TV
+        # if "<is_live blocked=\"false\">true</is_live>" in send_request(url, query_media):
+        # Use this if watching on a Roku device (Premier, Streambar)
+        if "<is_live>true</is_live>" in send_request(device_url, query_media):
             print("Didn't launch chosen show, trying again")
-            launch_pluto(device_url)
+            launch_channel(device_url, 74519)
         else:
             print("Chosen show successfully launched")
             show_launched = True
@@ -727,23 +897,37 @@ def confirm_pluto_show_loaded(url):
 
 # Similar to Netflix
 # We need to exit Pluto to ensure a known starting point
-def exit_pluto(url, ):
+def exit_pluto(url):
     if url:
         device_url = url
     else:
         device_url = url_1
 
+    if primary_show_name is None and secondary_show_name is None:
+        set_channel_and_show(device_url, 74519)
+
+    if device_url is url_1:
+        show = primary_show_name
+        channel = primary_channel_name
+    else:
+        show = secondary_show_name
+        channel = secondary_channel_name
+
     media_player_status = send_request(url, query_media)
 
+    # Use this if watching on a Roku TV
+    # if "<is_live blocked=\"false\">true</is_live>" in send_request(url, query_media):
+    # Use this if watching on a Roku device (Premier, Streambar)
     if "<is_live>true</is_live>" in media_player_status:
         return_range = 4
     else:
         return_range = 5
 
-    print("exiting ", channel_2)
+    print("exiting ", channel)
+    set_exit_show_msg(show)
     for x in range(return_range):  # Exit App
         send_request(device_url, back)
-        time.sleep(1)
+        time.sleep(2)
     send_request(device_url, down)  # Navigate to Exit App in selection
     time.sleep(1)
     send_request(device_url, select)  # Exit app, return to home screen
@@ -770,45 +954,58 @@ def launch_paramount(url):
         app = secondary_active_app
 
     if state is "active":
-        if app not in [int(channel_id_1), int(channel_id_2), int(channel_id_3)]:
+        if app not in [first_channel_id, second_channel_id, third_channel_id]:
             print("need to power on device at", device_url)
             send_request(device_url, pwr_on)
 
         # Check to see if Netflix is active, if so exit the app before starting new show
-        if app == netflix_channel_id:
-            exit_netflix(url=device_url)
+        if app == 12:
+            exit_netflix(device_url)
             time.sleep(1)
         # Check to see if Pluto is active, if so exit the app before starting new show
-        if app == pluto_channel_id:
+        if app == 74519:
             exit_pluto(device_url)
             time.sleep(1)
+        # See if we're in Paramount or Frndly
+        if app == 31440 or app == 298229:
+            send_request(device_url, home)
 
-        print("launching ", show_2, "on ", channel_2, " on device ", device_url)
+        set_channel_and_show(device_url, 31440)
+
+        if device_url is url_1:
+            show = primary_show_name
+            channel = primary_channel_name
+        else:
+            show = secondary_show_name
+            channel = secondary_channel_name
+
+        channel_id = get_channel_id(channel)
+
+        print("launching ", show, "on ", channel, " on device ", device_url)
 
         # Set the display to indicate what we're watching
         if second_tv is True:
             second_tv = False
         else:
-            set_watching_display(channel=channel_2)
+            set_watching_display(channel, show)
 
-        channel_call = (launch + channel_id_2)
+        channel_call = (launch + channel_id)
 
         send_request(device_url, channel_call)  # launch Paramount+
         time.sleep(10)
         send_request(device_url, right)  # Navigate to second profile
         time.sleep(2)
         send_request(device_url, select)  # Select second profile
-        time.sleep(1)
+        time.sleep(5)
         send_request(device_url, left)  # Access lef nav
         time.sleep(1)
-        send_request(device_url, up)  # Move up to enter Search
-        time.sleep(1)
-        send_request(device_url, select)  # Enter Search
-        time.sleep(1)
-        search_program(url=device_url, show=show_2, channel=channel_2)
-        time.sleep(1)
-        send_request(device_url, select)  # Select the searched show
-        time.sleep(1)
+        for i in range(7):
+            send_request(device_url, down)  # Move Down to My List
+            time.sleep(1)
+        send_request(device_url, select)  # Select My List
+        time.sleep(2)
+        send_request(device_url, select)  # Select the first show in the list
+        time.sleep(2)
         send_request(device_url, select)  # Start playing the show
 
         time.sleep(2)
@@ -838,32 +1035,43 @@ def launch_frndly(url):
         app = secondary_active_app
 
     if state is "active":
-        if app not in [int(channel_id_1), int(channel_id_2), int(channel_id_3)]:
+        if app not in [first_channel_id, second_channel_id, third_channel_id]:
             print("need to power on device at", device_url)
             send_request(device_url, pwr_on)
 
         # Check to see if Netflix is active, if so exit the app before starting new show
-        if app == netflix_channel_id:
+        if app == 12:
             exit_netflix(device_url)
             time.sleep(1)
         # Check to see if Pluto is active, if so exit the app before starting new show
-        if app == pluto_channel_id:
+        if app == 74519:
             exit_pluto(device_url)
             time.sleep(1)
 
         # Check if we're already watching Frndly, then exit.
-        if app == frndly_channel_id:
+        if app == 298229:
             send_request(url, home)
             time.sleep(1)
 
-        print("launching ", show_3, " on ", channel_3, " on device ", device_url)
+        set_channel_and_show(device_url, 298229)
+
+        if device_url is url_1:
+            show = primary_show_name
+            channel = primary_channel_name
+        else:
+            show = secondary_show_name
+            channel = secondary_channel_name
+
+        channel_id = get_channel_id(channel)
+
+        print("launching ", show, " on ", channel, " on device ", device_url)
 
         if second_tv is True:
             second_tv = False
         else:
-            set_watching_display(channel=channel_3)
+            set_watching_display(channel, show)
 
-        channel_call = (launch + channel_id_3)
+        channel_call = (launch + channel_id)
 
         send_request(device_url, channel_call)  # Launch FrndlyTV
         time.sleep(10)
@@ -906,7 +1114,6 @@ def get_active_app(url):
         print("get_active_app: Attempting to get active channel for device", device_url)
         channel_text = send_request(device_url, active_app)
         if channel_text is not None:
-            print("channel text is", channel_text)
             regex = re.compile("[\r\n]")
             parsed_response = regex.split(channel_text)
             if string_to_check not in parsed_response[2]:
@@ -984,7 +1191,6 @@ def interact_with_tv(url):
         device_url = url_1
 
     netflix_show_status = send_request(device_url, query_media)
-    print("show status is", netflix_show_status)
     if "pause" in netflix_show_status or "stop" in netflix_show_status:
         print("")
     else:
@@ -1012,17 +1218,21 @@ def power_off(url):
     if state is "active":
 
         # Check to see if Netflix is active, is so exit the app before starting new show
-        if app == netflix_channel_id:
+        if app == 12:
             exit_netflix(device_url)
             time.sleep(1)
         # Check to see if Netflix is active, is so exit the app before starting new show
-        if app == pluto_channel_id:
+        if app == 74519:
             exit_pluto(device_url)
             time.sleep(1)
+
+        set_power_off_msg()
 
         print("power_off: Exiting app, returning to home screen, powering off display")
 
         send_request(device_url, home)
+        time.sleep(5)
+        set_active_app(device_url)
         time.sleep(1)
         send_request(device_url, pwr_off)
 
@@ -1031,8 +1241,97 @@ def power_off(url):
         else:
             set_default_display_msg()
 
-        time.sleep(5)
-        set_active_app(device_url)
+
+def volume_up(url):
+    if url:
+        device_url = url
+    else:
+        device_url = url_1
+
+    set_volume_change_msg("up")
+    send_request(device_url, vol_up)
+    time.sleep(0.5)
+    set_default_display_msg()
+
+
+def volume_down(url):
+    if url:
+        device_url = url
+    else:
+        device_url = url_1
+
+    set_volume_change_msg("down")
+    send_request(device_url, vol_down)
+    time.sleep(0.5)
+    set_default_display_msg()
+
+
+def launch_channel(url, app):
+
+    print("app provided is", app)
+
+    if app == 12:
+        print("launching show on netflix")
+        launch_netflix(url)
+    if app == 74519:
+        print("launching show on pluto")
+        launch_pluto(url)
+    if app == 31440:
+        print("launching show on paramount")
+        launch_paramount(url)
+    if app == 298229:
+        print("launching show on frndly")
+        launch_frndly(url)
+
+
+def reboot_device(url):
+    if url:
+        device_url = url
+    else:
+        device_url = url_1
+
+    if device_url is url_1:
+        state = primary_device_state
+        app = primary_active_app
+    else:
+        state = secondary_device_state
+        app = secondary_active_app
+
+    if state is "active":
+        if app not in [int(channel_id_1), int(channel_id_2), int(channel_id_3)]:
+            print("need to power on device at", device_url)
+            send_request(device_url, pwr_on)
+
+        # Check to see if Netflix is active, if so exit app before starting new show
+        if app == 12:
+            exit_netflix(device_url)
+            time.sleep(1)
+        # Check to see if Pluto is active, if so exit app before starting new show
+        if app == 74519:
+            exit_pluto(device_url)
+            time.sleep(1)
+
+        send_request(device_url, home)
+        time.sleep(1)
+        for i in range(6):
+            send_request(device_url, down)
+            time.sleep(1)
+        send_request(device_url, right)
+        time.sleep(1)
+        for i in range(12):
+            send_request(device_url, down)
+            time.sleep(1)
+        send_request(device_url, right)
+        time.sleep(1)
+        for i in range(7):
+            send_request(device_url, down)
+            time.sleep(1)
+        send_request(device_url, right)
+        time.sleep(1)
+        send_request(device_url, select)
+
+
+
 
 
 # --- Main ---
@@ -1040,17 +1339,22 @@ while True:
     # Set commands for when a key is pressed
     # Keys only interact with the primary TV
     if neokey[0]:
-        launch_netflix(url_1)
+        launch_channel(url_1, first_channel_id)
 
     if neokey[1]:
-        launch_pluto(url_1)
-        confirm_pluto_show_loaded(url_1)
+        launch_channel(url_1, second_channel_id)
 
     if neokey[2]:
-        launch_frndly(url_1)
+        launch_channel(url_1, third_channel_id)
 
     if neokey[3]:
         power_off(url_1)
+
+    if neokey_2[1]:
+        volume_up(url_1)
+
+    if neokey_2[2]:
+        volume_down(url_1)
 
     # Interact with television, while watching Netflix, uses update_delay
     # which is set in the data.py file
@@ -1095,73 +1399,85 @@ while True:
         if default_display is False:
             set_default_display_msg()
 
-        # Hard reboot - just to flush out any bad things
-        if now[3] == 1 and now[4] >= 30:
+        # Hard reboot remote - just to flush out any bad things
+        if (now[3] == 1 and now[4] >= 5) and (now[3] == 1 and now[4] <= 10):
             print("resetting device")
             microcontroller.reset()
 
         if primary_device_state is "active":
-            if primary_active_app == netflix_channel_id:
+            if primary_active_app == first_channel_id:
                 interact_with_tv(url_1)
 
         if secondary_device_state is "active":
-            if secondary_active_app == netflix_channel_id:
+            if secondary_active_app == first_channel_id:
                 interact_with_tv(url_2)
+
+        # Reboot the TV - new day, fresh start
+        reboot_time = primary_tv_start_time - 1
+        if now[3] == reboot_time and now[4] >= 45:
+            if primary_reboot is True:
+                print("rebooting LR TV")
+                reboot_device(url_1)
+            primary_reboot = False
 
         # Turn on the primary TV each morning
         if now[3] == primary_tv_start_time[0] and now[4] >= primary_tv_start_time[1]:
-            if primary_tv_channel is channel_1:
-                if primary_active_app != netflix_channel_id:
-                    launch_netflix(url_1)
-                    set_default_display_msg()
-            elif primary_tv_channel is channel_2:
-                if primary_active_app != pluto_channel_id:
-                    wake_up_netflix(url_1)
-                    launch_pluto(url_1)
-                    confirm_pluto_show_loaded(url_1)
-            elif primary_tv_channel is channel_3:
-                if secondary_active_app != frndly_channel_id:
-                    launch_frndly(url_1)
-            else:
-                if primary_active_app != netflix_channel_id:
-                    launch_netflix(url_1)
+            if primary_device_state is "active":
+                if primary_tv_channel is channel_1:
+                    if primary_active_app != first_channel_id:
+                        launch_channel(url_1, first_channel_id)
+                elif primary_tv_channel is channel_2:
+                    if primary_active_app != second_channel_id:
+                        if primary_active_app == 12:
+                            wake_up_netflix(url_1)
+                        launch_channel(url_1, second_channel_id)
+                        confirm_pluto_show_loaded(url_1)
+                elif primary_tv_channel is channel_3:
+                    if secondary_active_app != third_channel_id:
+                        launch_channel(url_1, third_channel_id)
 
         # Turn off the primary TV each night
         if now[3] == primary_tv_end_time[0] and now[4] >= primary_tv_end_time[1]:
-            power_off(url_1)
+            if primary_device_state is "active":
+                power_off(url_1)
+
+            primary_reboot = True
+
+        # Reboot secondary TV each afternoon
+        if now[3] == 18 and now[4] >= 0:
+            if secondary_reboot is True:
+                print("rebooting secondary TV")
+                reboot_device(url_2)
+            secondary_reboot = False
 
         # Turn on the secondary TV each evening
         if now[3] == secondary_tv_start_time[0] and now[4] >= secondary_tv_start_time[1]:
-            if secondary_tv_channel is channel_1:
-                if secondary_active_app != netflix_channel_id:
-                    second_tv = True
-                    starting_secondary_tv_status_msg()
-                    launch_netflix(url_2)
-                    set_default_display_msg()
-            elif secondary_tv_channel is channel_2:
-                if secondary_active_app != pluto_channel_id:
-                    second_tv = True
-                    starting_secondary_tv_status_msg()
-                    wake_up_netflix(url_2)
-                    launch_pluto(url_2)
-                    confirm_pluto_show_loaded(url_2)
-                    set_default_display_msg()
-            elif secondary_tv_channel is channel_3:
-                if secondary_active_app != frndly_channel_id:
-                    second_tv = True
-                    starting_secondary_tv_status_msg()
-                    launch_frndly(url_2)
-                    set_default_display_msg()
-            else:
-                if secondary_active_app != netflix_channel_id:
-                    second_tv = True
-                    starting_secondary_tv_status_msg()
-                    launch_netflix(url_2)
-                    set_default_display_msg()
+            if secondary_device_state is "active":
+                if secondary_tv_channel is channel_1:
+                    if secondary_active_app != first_channel_id:
+                        second_tv = True
+                        set_secondary_tv_start_msg()
+                        launch_channel(url_2, first_channel_id)
+                elif secondary_tv_channel is channel_2:
+                    if secondary_active_app != second_channel_id:
+                        second_tv = True
+                        set_secondary_tv_start_msg()
+                        if secondary_active_app == 12:
+                            wake_up_netflix(url_2)
+                        launch_channel(url_2, second_channel_id)
+                        confirm_pluto_show_loaded(url_2)
+                elif secondary_tv_channel is channel_3:
+                    if secondary_active_app != third_channel_id:
+                        second_tv = True
+                        set_secondary_tv_start_msg()
+                        launch_channel(url_2, third_channel_id)
 
         # Turn off the secondary TV each night
         if now[3] == secondary_tv_end_time[0] and now[4] >= secondary_tv_end_time[1]:
-            power_off(url_2)
+            if secondary_device_state is "active":
+                power_off(url_2)
+
+            secondary_reboot = True
 
         interact_check = time.monotonic()
 
