@@ -62,6 +62,7 @@ secondary_tv_end_time = data["secondary_tv_end_time"]
 secondary_tv_channel = data["secondary_tv_channel"]
 update_delay = data["update_delay"]
 interact_delay = data["interact_delay"]
+remote_reboot_time = data["remote_reboot_time"]
 primary_reboot = True
 secondary_reboot = True
 
@@ -488,7 +489,6 @@ def set_power_off_msg():
     default_display = False
 
 
-
 # --- Helper methods for other tasks not related to the Roku or Display ---
 
 
@@ -856,11 +856,11 @@ def launch_pluto(url):
         send_request(device_url, select)
         time.sleep(1)
         send_request(device_url, select)
+        time.sleep(5)
+        confirm_pluto_show_loaded(device_url)
+
         time.sleep(2)
         set_active_app(device_url)
-
-        time.sleep(1)
-        confirm_pluto_show_loaded(device_url)
 
         time.sleep(2)
         set_default_display_msg()
@@ -1113,6 +1113,7 @@ def get_active_app(url):
     if app_state is "active":
         print("get_active_app: Attempting to get active channel for device", device_url)
         channel_text = send_request(device_url, active_app)
+        print("data returned is", channel_text)
         if channel_text is not None:
             regex = re.compile("[\r\n]")
             parsed_response = regex.split(channel_text)
@@ -1231,9 +1232,9 @@ def power_off(url):
         print("power_off: Exiting app, returning to home screen, powering off display")
 
         send_request(device_url, home)
-        time.sleep(5)
+        time.sleep(10)
         set_active_app(device_url)
-        time.sleep(1)
+        time.sleep(5)
         send_request(device_url, pwr_off)
 
         if second_tv is True:
@@ -1250,7 +1251,7 @@ def volume_up(url):
 
     set_volume_change_msg("up")
     send_request(device_url, vol_up)
-    time.sleep(0.5)
+    time.sleep(0.25)
     set_default_display_msg()
 
 
@@ -1262,7 +1263,7 @@ def volume_down(url):
 
     set_volume_change_msg("down")
     send_request(device_url, vol_down)
-    time.sleep(0.5)
+    time.sleep(0.25)
     set_default_display_msg()
 
 
@@ -1400,7 +1401,8 @@ while True:
             set_default_display_msg()
 
         # Hard reboot remote - just to flush out any bad things
-        if (now[3] == 1 and now[4] >= 5) and (now[3] == 1 and now[4] <= 10):
+        if (now[3] == remote_reboot_time[0] and now[4] >= remote_reboot_time[1]) and \
+                (now[3] == remote_reboot_time[0] and now[4] <= remote_reboot_time[1] + 5):
             print("resetting device")
             microcontroller.reset()
 
@@ -1413,8 +1415,13 @@ while True:
                 interact_with_tv(url_2)
 
         # Reboot the TV - new day, fresh start
-        reboot_time = primary_tv_start_time - 1
-        if now[3] == reboot_time and now[4] >= 45:
+        if primary_tv_start_time[1] == 0:
+            primary_tv_reboot_minutes = 40
+            primary_tv_reboot_hour = primary_tv_start_time[0] - 1
+        else:
+            primary_tv_reboot_hour = primary_tv_start_time[0]
+            primary_tv_reboot_minutes = primary_tv_start_time[1] - 20
+        if now[3] == primary_tv_reboot_hour and now[4] >= primary_tv_reboot_minutes:
             if primary_reboot is True:
                 print("rebooting LR TV")
                 reboot_device(url_1)
@@ -1444,7 +1451,7 @@ while True:
             primary_reboot = True
 
         # Reboot secondary TV each afternoon
-        if now[3] == 18 and now[4] >= 0:
+        if now[3] == secondary_tv_start_time[0] and now[4] >= secondary_tv_start_time[1] - 10:
             if secondary_reboot is True:
                 print("rebooting secondary TV")
                 reboot_device(url_2)
