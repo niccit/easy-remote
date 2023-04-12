@@ -39,10 +39,7 @@ Adafruit libraries this project needs:
 - adafruit_io
 - adafruit_neokey
 - adafruit_matrixportal
-- adafruit_minimqtt
 - adafruit_requests.mpy
-- adafruit_fake_requests.mpy
-- digitalio.mpy
 
 All configurable data is stored in the data file:
 - device_hosts : One or more Roku devices available on the network
@@ -53,14 +50,13 @@ All configurable data is stored in the data file:
 - frndly_guide_position : Unfortunately, Frndly TV app currently doesn't support the Roku search controls. For now you have to find your channel in the guide and count how many down from the top it is and us it for this value.
 - netflix_search_int : Netflix doesn't put you back to the starting position on the search grid, so you have to note how many moves right it is from the last letter in your search to the program you want to select.
 - paramount_search_int : Paramount moves where they leave the search cursor, use this value to change how many times to move the cursor in order to select the desired show
-- primary_tv_start_time : The time, stored in an array [hh, mm], you want the primary television to turn on each day
-- primary_tv_end_time : The time, stored in an array [hh, mm], you want the primary television to turn off each day
-- secondary_tv_start_time: The time, stored in an array [hh, mm], you want the secondary television to turn on each day
-- secondary_tv_end_time: The time, stored in an array [hh, mm], you want the secondary television to turn off each day
+- primary_tv_start_time : The time, stored in an array [h, m], you want the primary television to turn on each day
+- primary_tv_end_time : The time, stored in an array [h, m], you want the primary television to turn off each day
+- secondary_tv_start_time: The time, stored in an array [h, m], you want the secondary television to turn on each day
+- secondary_tv_end_time: The time, stored in an array [h, m], you want the secondary television to turn off each day
 - update_delay : This is the first of the main while loops. General setup/housekeeping, doesn't need to run often. Set to 1 hour
 - interact_delay: This is the second of the main while loops, it interacts with Netflix and handles automatic start/stop of the devices. Set to 20 miutes
-- test_mode: Should always be False. I used to this run a third while loop to set the value of the keys on the i2c bus. Mostly to test resiliency of the remote when the keys were being actively, possibly frequently pressed
-- test_delay: How long to wait between test loops. Set to 5 minutes
+- remote_reboot_time: The time, stored in an array [h, m], you want the remote to reboot each day
 
 ### Why I chose to use a data file?
 I wanted the code to be flexible with as little hard coding as possible. It's much easier to edit the data file then to make changes directly in the code.
@@ -76,11 +72,15 @@ All the hardware is from <a href="https://www.adafruit.com" target="_blank">Adaf
     - <a href="https://www.adafruit.com/product/4813" target="_blank">Adhesive Squares</a>
     - <a href="https://www.adafruit.com/product/1995" target="_blank">5V 2.4A Power Supply</a> + <a href="https://www.adafruit.com/product/4299" target="_blank">USB C adapter</a>
 - <a href="https://www.adafruit.com/product/4980" target="_blank">NeoKey 1x4 QT I2C - Four Mechanical Key Switches with NeoPixels - STEMMA QT / Qwiic</a>
+    - If you want to include the volume buttons you'll need a second NeoKey keyboard
+    - I've modified the OpenSCAD file for the keyboard case to support 2 or 4 keys
 - <a href="https://www.adafruit.com/product/4955" target="_blank">Kailh Mechanical Key Switches - Clicky White - 10 pack - Cherry MX White Compatible</a>
 - <a href="https://www.adafruit.com/product/4997" target="_blank">DSA Keycaps for MX Compatipe Switches - 10 pack</a>
 	 - Colors used: Red, Dark Blue, Neon Green, White
 - <a href="https://www.adafruit.com/product/4210" target="_blank">STEMMA QT/Qwiic JST SH 4-pin Cable - 100mm long</a>
 	 - You can also build your own
+- <a href="https://www.adafruit.com/product/4756" target="_blank">Adafruit LTC4311 `I2C Extender / Active Terminator` - STEMMA QT / Qwiic</a>
+      - You need this if you want to run a long STEMMA QT cable - so the remote can sit in front of the remote, not on the side
 
 
 ## 3D printing
@@ -140,13 +140,9 @@ Huge thank you to HopefulLlama and rcoyler for sharing their libraries with the 
 
 - The software periodically crashes with a seesaw error, when I reset I get the error message "No pull up found. check your wiring".
   - **FIRST:** Ensure you're using a [STEMMA QT/Qwiic cable](https://www.adafruit.com/product/4399)
-  - I'm still digging into this one
-  - As far as I can tell so far it has to do with the I2C cable length
-  - I've tried 50mm, 145mm, and 200mm so far and the only one that doesn't get this error is the 50mm
-    - I'm updating the 3D printing files to reflect how to mount the keyboard using a 50mm cable
-  - I'm no engineer, but it has been suggested that it might be a resistance issue.
-  - As I learn more about this I'll update the readme.
-  - **Solution:** (for now) use a 50mm STEMMA QT / Qwiic cable
+  - Posted in the Adafruit forums about this issue. 
+  - **Solution** This seems to be specific to this board, so between your Matrix Portal 4 and the Keyboard, put an Adafruit LTC4311 I2C Extender / Active Terminator - STEMMA QT / Qwiic
+     - The part is linked above in the hardware section.
 
 <img src="docs/remote_with_side_mount_keyboard_front.jpg" width="400" height="400"/>
 

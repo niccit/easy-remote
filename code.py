@@ -4,13 +4,13 @@
 # It was designed to help a senior have less frustration while trying to watch television
 
 import time
-import adafruit_requests as requests
 import board
 import busio
 import digitalio
 import re
 import displayio
 import microcontroller
+import adafruit_requests as requests
 import adafruit_esp32spi.adafruit_esp32spi_socket as socket
 from adafruit_esp32spi import adafruit_esp32spi
 from adafruit_matrixportal.matrixportal import MatrixPortal
