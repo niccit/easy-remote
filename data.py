@@ -15,6 +15,5 @@ data = {
     'secondary_tv_channel': "Netflix", # Which show should we launch each evening on the secondary TV
     'update_delay': 3600,  # Each hour perform general housekeeping
     'interact_delay': 1200,  # Every 20 minutes perform time specific tasks
-    'test_mode': False,  # This is only used for testing purposes - it should normally be FALSE
-    'test_delay': 600  # How long to wait between test cycles
+    'remote_reboot_time': [1, 0]  # Reboot the remote, like pushing the reset button
 }
