@@ -1,2 +1,7 @@
 data_myproject.py
 *.swp
+/adafruit-circuitpython-matrixportal_m4-en_US-8.0.4.uf2
+kailh_key.scad
+/out/
+/adafruit_lib/
+/images/kailh*
