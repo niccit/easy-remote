@@ -1,9 +1,11 @@
 # SPDX-License-Identifier: MIT
+
 # This is a very simple remote, designed for individuals with difficulty navigating
 # all the different streaming applications
 # It was designed to help a senior have less frustration while trying to watch television
 
 import time
+import random
 import board
 import busio
 import digitalio
@@ -830,6 +832,7 @@ def launch_pluto(url):
         wait_for_start = True
 
         send_request(device_url, channel_call)  # launch Pluto TV
+
         while wait_for_start is True:
             # Use this line if watching on a Roku TV
             # if "<is_live blocked=\"false\">true</is_live>" in send_request(url, query_media):
@@ -841,6 +844,7 @@ def launch_pluto(url):
                 print("waiting for channel to launch")
                 time.sleep(4)
         print("start launch procedure")
+
         send_request(device_url, left)  # Open left nav
         time.sleep(1)
         for i in range(2):
