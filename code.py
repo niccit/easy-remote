@@ -937,6 +937,83 @@ def exit_pluto(url):
     send_request(device_url, select)  # Exit app, return to home screen
 
 
+# Launch Selected Channel on YouTube TV
+def launch_youtubetv(url):
+    global second_tv
+
+    if url:
+        device_url = url
+    else:
+        device_url = url_1
+
+    if device_url is url_1:
+        state = primary_device_state
+        app = primary_active_app
+    else:
+        state = secondary_device_state
+        app = secondary_active_app
+
+    if state is "active":
+        if app not in [int(channel_id_1), int(channel_id_2), int(channel_id_3)]:
+            print("need to power on device at", device_url)
+            send_request(device_url, pwr_on)
+
+        # Check to see if Netflix is active, if so exit app before starting new show
+        if app == 12:
+            exit_netflix(device_url)
+            time.sleep(1)
+        # Check to see if Pluto is active, if so exit app before starting new show
+        if app == 74519:
+            exit_pluto(device_url)
+            time.sleep(1)
+
+        set_channel_and_show(device_url, 195316)
+
+        if device_url is url_1:
+            channel = primary_channel_name
+            show = primary_show_name
+        else:
+            channel = secondary_channel_name
+            show = secondary_show_name
+
+        channel_id = get_channel_id(channel)
+
+        print("launching ", show, "on ", channel, " on device ", device_url)
+
+        # Set the display to indicate what we're watching
+        if second_tv is True:
+            second_tv = False
+        else:
+            set_watching_display(channel, show)
+
+        channel_call = (launch + channel_id)
+
+        send_request(device_url, channel_call)  # launch YouTube TV
+        time.sleep(15)
+        for i in range(2):
+            send_request(device_url, right)  # Navigate to search
+            time.sleep(1)
+        send_request(device_url, down)  # Enter search
+        time.sleep(1)
+        search_program(device_url, channel, show)  # Search for channel
+        time.sleep(1)
+        for i in range(1):
+            send_request(device_url, right)  # Navigate to searched channel
+            time.sleep(2)
+        send_request(device_url, select)
+        time.sleep(1)
+        send_request(device_url, down)
+        time.sleep(1)
+        for i in range(1):
+            send_request(device_url, select)
+            time.sleep(1)
+        time.sleep(1)
+        set_active_app(device_url)
+
+        time.sleep(2)
+        set_default_display_msg()
+
+
 # Launch Paramount+
 # Choose second profile
 # Open left nav
@@ -1334,9 +1411,6 @@ def reboot_device(url):
         send_request(device_url, right)
         time.sleep(1)
         send_request(device_url, select)
-
-
-
 
 
 # --- Main ---
