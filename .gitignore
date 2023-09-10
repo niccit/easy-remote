@@ -5,3 +5,4 @@ kailh_key.scad
 /out/
 /adafruit_lib/
 /images/kailh*
+secrets.py
