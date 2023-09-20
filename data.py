@@ -1,9 +1,9 @@
 data = {
     'device_hosts': ['primary.device.ip.address', 'secondary.device.ip.address'],
     'service_port': '8060',  # The default port for Roku devices
-    'shows': ['Hallmark', 'Lavern/Shrily', 'TV Land'],
-    'channels': ['YouTube TV', 'PlutoTv' 'YouTube TV'],
-    'channel_numbers': ['12', '31440', '195316'],
+    'shows': ['Good Witch', 'Hallmark', 'Lavern/Shrily', 'TV Land', 'IFC', 'ABC', 'Steelers'],
+    'channels': ['Netflix', 'YouTube TV', 'Pluto', 'YouTube TV', 'YouTube TV', 'YouTube TV', 'YouTube TV'],
+    'channel_numbers': ['12', '195316', '31440', '196316', '196316', '196316', '196316'],
     'frndly_guide_position': 4,
     'netflix_search_int': 5,
     'paramount_search_int': 6,
@@ -15,5 +15,5 @@ data = {
     'secondary_tv_channel': "YouTube TV",  # Which show should we launch each evening on the secondary TV
     'update_delay': 3600,  # Each hour perform general housekeeping
     'interact_delay': 1200,  # Every 20 minutes perform time specific tasks
-    'remote_reboot_time': [1, 0]  # Reboot the remote, like pushing the reset button
+    'key_input_delay': 5
 }
